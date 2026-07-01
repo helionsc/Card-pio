@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel do Vendedor</title>
+<link rel="stylesheet" href="css/glass.css">
+<style>
+  body { min-height: 100vh; padding-bottom: 100px; }
+
+  .admin-header {
+    position: sticky; top: 0; z-index: 100;
+    padding: 16px 20px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .admin-header .who { display: flex; align-items: center; gap: 12px; }
+  .admin-header .logo-mini {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 18px; overflow: hidden;
+  }
+  .admin-header .logo-mini img { width: 100%; height: 100%; object-fit: cover; }
+  .admin-header h1 { margin: 0; font-size: 16px; font-weight: 700; }
+  .admin-header .sub { font-size: 11.5px; color: var(--ink-soft); }
+
+  .container { padding: 0 20px; max-width: 600px; margin: 0 auto; }
+
+  /* ---------- Bottom nav ---------- */
+  .bottom-nav {
+    position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 200;
+    display: flex; justify-content: space-between;
+    padding: 8px; border-radius: var(--r-pill);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 4px; border-radius: var(--r-pill);
+    color: var(--ink-faint); font-size: 10.5px; font-weight: 600;
+    transition: all 0.3s var(--ease-spring); border: none; background: none;
+  }
+  .nav-item .ic { font-size: 18px; }
+  .nav-item.active { color: var(--brand); background: rgba(var(--brand-rgb), 0.1); transform: scale(1.05); }
+
+  /* ---------- Dashboard cards ---------- */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .stat-card {
+    padding: 18px; border-radius: var(--r-lg);
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .stat-card .num { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; }
+  .stat-card .lbl { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  .status-toggle-card {
+    padding: 18px; border-radius: var(--r-lg); margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .status-toggle-card .left { display: flex; align-items: center; gap: 12px; }
+  .status-toggle-card .left .dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  .section-title {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-faint); margin: 22px 4px 10px;
+  }
+
+  /* ---------- Lista de produtos (admin) ---------- */
+  .admin-product-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; border-radius: var(--r-lg); margin-bottom: 10px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(16px) saturate(1.5);
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .admin-product-row img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
+  .admin-product-row .info { flex: 1; min-width: 0; }
+  .admin-product-row .info h4 { margin: 0 0 2px; font-size: 14.5px; font-weight: 650; }
+  .admin-product-row .info .meta { font-size: 12px; color: var(--ink-soft); }
+  .admin-product-row.is-off { opacity: 0.5; }
+  .admin-product-row .actions { display: flex; gap: 6px; align-items: center; }
+
+  .fab {
+    position: fixed; right: 20px; bottom: 92px; z-index: 199;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--brand); color: #fff; font-size: 26px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(var(--brand-rgb), 0.5);
+    border: none;
+  }
+
+  .cat-chip-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 4px; margin-bottom: 14px; }
+  .cat-chip-row::-webkit-scrollbar { display: none; }
+  .cat-chip {
+    flex-shrink: 0; padding: 8px 16px; border-radius: var(--r-pill);
+    background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.5);
+    font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+  }
+  .cat-chip.active { background: var(--brand); color: #fff; }
+
+  .day-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 0; border-bottom: 1px solid rgba(60,60,67,0.08);
+  }
+  .day-row:last-child { border-bottom: none; }
+  .day-row .day-name { width: 62px; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .day-row input[type=time] {
+    font-family: inherit; border: 1.5px solid rgba(60,60,67,0.14); border-radius: 10px;
+    padding: 6px 4px; font-size: 12px; background: rgba(255,255,255,0.6); width: 78px;
+    flex-shrink: 0;
+  }
+  .day-row .to-label { color: var(--ink-faint); font-size: 11px; flex-shrink: 0; }
+
+  /* ---------- Kanban de pedidos ---------- */
+  .kanban-wrap {
+    /* ocupa a tela inteira ignorando o padding do .container */
+    margin: 0 -20px;
+    padding: 0 20px 16px;
+    overflow-x: auto;
+    display: flex;
+    gap: 14px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+  .kanban-wrap::-webkit-scrollbar { display: none; }
+
+  .kanban-col {
+    flex: 0 0 274px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .kanban-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px 10px;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .kanban-header .col-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  }
+  .kanban-header .col-title {
+    font-size: 12.5px; font-weight: 750; letter-spacing: 0.03em;
+    text-transform: uppercase; flex: 1;
+  }
+  .kanban-header .col-count {
+    font-size: 11.5px; font-weight: 700;
+    background: rgba(0,0,0,0.1);
+    padding: 2px 8px; border-radius: var(--r-pill);
+  }
+
+  /* Cores por coluna */
+  .col-recebido .kanban-header  { background: rgba(255,159,10,0.14); color: #B25000; }
+  .col-recebido .col-dot        { background: #FF9F0A; }
+  .col-preparo .kanban-header   { background: rgba(10,132,255,0.12); color: #0060C0; }
+  .col-preparo .col-dot         { background: #0A84FF; }
+  .col-transito .kanban-header  { background: rgba(175,82,222,0.12); color: #7B25C0; }
+  .col-transito .col-dot        { background: #AF52DE; }
+  .col-concluido .kanban-header { background: rgba(52,199,89,0.12); color: #1A7E35; }
+  .col-concluido .col-dot       { background: #34C759; }
+
+  .kanban-body {
+    background: rgba(120,120,128,0.06);
+    border: 1px solid rgba(255,255,255,0.45);
+    border-top: none;
+    border-radius: 0 0 var(--r-lg) var(--r-lg);
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 160px;
+  }
+
+  .order-card {
+    border-radius: var(--r-md);
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: 0 3px 12px rgba(31,38,60,0.08);
+    overflow: hidden;
+    animation: fadeUp 0.3s var(--ease-out) both;
+  }
+  .order-card-top {
+    padding: 12px 14px 8px;
+  }
+  .order-card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 6px;
+  }
+  .order-card-num {
+    font-size: 14px; font-weight: 750; letter-spacing: -0.01em;
+  }
+  .order-card-time {
+    font-size: 11px; color: var(--ink-faint); font-weight: 500;
+  }
+  .order-card-tipo {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600; padding: 3px 8px;
+    border-radius: var(--r-pill); margin-bottom: 6px;
+  }
+  .tipo-entrega  { background: rgba(10,132,255,0.1); color: #0060C0; }
+  .tipo-retirada { background: rgba(52,199,89,0.1); color: #1A7E35; }
+  .order-card-items {
+    font-size: 12.5px; color: var(--ink-soft); line-height: 1.45;
+    margin-bottom: 4px;
+  }
+  .order-card-valor {
+    font-size: 14px; font-weight: 750; color: var(--ink);
+  }
+  .order-card-endereco {
+    font-size: 11px; color: var(--ink-faint); margin-top: 3px;
+  }
+  .order-card-actions {
+    border-top: 1px solid rgba(60,60,67,0.08);
+    padding: 8px 10px;
+    display: flex; gap: 6px;
+  }
+  .order-card-actions .btn {
+    flex: 1; font-size: 12px; padding: 9px 10px;
+    border-radius: var(--r-md);
+  }
+
+  /* timer de tempo decorrido */
+  .order-timer {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: var(--r-pill);
+    background: rgba(120,120,128,0.1); color: var(--ink-soft);
+    margin-top: 4px;
+  }
+  .order-timer.urgent { background: rgba(255,59,48,0.12); color: #D70015; }
+
+  .kanban-empty {
+    text-align: center; padding: 24px 12px;
+    color: var(--ink-faint); font-size: 12.5px;
+  }
+  .kanban-empty svg { opacity: 0.3; margin-bottom: 8px; }
+
+  /* badge de novos pedidos no nav */
+  .nav-item .notif-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #FF3B30;
+    position: absolute; top: 6px; right: calc(50% - 12px);
+  }
+  .nav-item { position: relative; }
+
+  .toolbar-row { display: flex; gap: 8px; margin-bottom: 4px; }
+  .toolbar-row .btn { flex: 1; }
+
+  .color-swatch-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .color-swatch {
+    width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+    border: 3px solid transparent; transition: all 0.2s var(--ease-spring);
+  }
+  .color-swatch.selected { border-color: var(--ink); transform: scale(1.12); }
+</style>
+</head>
+<body>
+<div class="ambient-bg"></div>
+
+<div class="admin-header glass" id="adminHeader"></div>
+
+<div class="container" id="screenContent"></div>
+
+<div class="bottom-nav glass-strong" id="bottomNav"></div>
+
+<!-- Sheet: produto (criar/editar) -->
+<div class="sheet-overlay" id="overlayProdutoForm"></div>
+<div class="sheet" id="sheetProdutoForm" style="max-height:92vh;">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header flex justify-between items-center">
+    <h2 style="margin:0;font-size:18px;font-weight:750;" id="produtoFormTitle">Novo produto</h2>
+    <button class="btn-icon btn-ghost" style="border:none;" onclick="fecharSheetAdmin('sheetProdutoForm','overlayProdutoForm')" data-icon="close" data-icon-size="17"></button>
+  </div>
+  <div class="sheet-body" id="produtoFormBody"></div>
+</div>
+
+<!-- Sheet: categoria (criar/editar) -->
+<div class="sheet-overlay" id="overlayCategoriaForm"></div>
+<div class="sheet" id="sheetCategoriaForm">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header flex justify-between items-center">
+    <h2 style="margin:0;font-size:18px;font-weight:750;" id="categoriaFormTitle">Nova categoria</h2>
+    <button class="btn-icon btn-ghost" style="border:none;" onclick="fecharSheetAdmin('sheetCategoriaForm','overlayCategoriaForm')" data-icon="close" data-icon-size="17"></button>
+  </div>
+  <div class="sheet-body" id="categoriaFormBody"></div>
+</div>
+
+<script src="js/icons.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script>
+DB.seedIfEmpty();
+const lojaId = getQueryParam('id') || DB.getSession()?.lojaId;
+let loja = DB.getLoja(lojaId);
+
+if (!loja) {
+  window.location.href = 'admin-login.html';
+  throw new Error('redirecionando');
+}
+
+aplicarTemaLoja(loja);
+let telaAtual = 'dashboard';
+let categoriaFiltro = 'all';
+
+function persistir() { DB.saveLoja(loja); }
+
+/* =========================================================
+   Header + Bottom nav
+   ========================================================= */
+function renderHeader() {
+  document.getElementById('adminHeader').innerHTML = `
+    <div class="who">
+      <div class="logo-mini">${loja.logoUrl ? `<img src="${loja.logoUrl}">` : Icon.store({size: 20})}</div>
+      <div>
+        <h1>${loja.nome}</h1>
+        <div class="sub">Painel do vendedor</div>
+      </div>
+    </div>
+    <button class="btn-icon btn-glass" onclick="sair()" title="Sair">${Icon.logout({size: 18})}</button>
+  `;
+}
+
+const navItems = [
+  { id: 'dashboard', icon: 'home', label: 'Início' },
+  { id: 'produtos', icon: 'bowl', label: 'Produtos' },
+  { id: 'categorias', icon: 'grid', label: 'Categorias' },
+  { id: 'horarios', icon: 'clock', label: 'Horários' },
+  { id: 'pedidos', icon: 'receipt', label: 'Pedidos' },
+  { id: 'config', icon: 'settings', label: 'Loja' },
+];
+
+function renderNav() {
+  document.getElementById('bottomNav').innerHTML = navItems.map(n => {
+    const ativo = telaAtual === n.id;
+    const svg = Icon[n.icon]({ size: 22, filled: ativo });
+    return `
+    <button class="nav-item ${ativo ? 'active' : ''}" onclick="irPara('${n.id}')">
+      <span class="ic">${svg}</span>
+      <span>${n.label}</span>
+    </button>
+  `;
+  }).join('');
+}
+
+function irPara(tela) {
+  if (telaAtual === 'pedidos' && tela !== 'pedidos') pararPollingPedidos();
+  telaAtual = tela;
+  renderNav();
+  renderTela();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function sair() {
+  DB.clearSession();
+  window.location.href = 'admin-login.html';
+}
+
+/* =========================================================
+   Router simples
+   ========================================================= */
+function renderTela() {
+  const map = {
+    dashboard: telaDashboard,
+    produtos: telaProdutos,
+    categorias: telaCategorias,
+    horarios: telaHorarios,
+    pedidos: telaPedidos,
+    config: telaConfig,
+  };
+
+  const content = document.getElementById('screenContent');
+  // pedidos usa full-width (kanban horizontal); outras telas usam .container
+  if (telaAtual === 'pedidos') {
+    content.className = '';
+    content.style.padding = '0 20px';
+    content.style.maxWidth = '';
+    content.style.margin = '';
+  } else {
+    content.className = 'container';
+    content.style.padding = '';
+    content.style.maxWidth = '';
+    content.style.margin = '';
+  }
+
+  content.innerHTML = map[telaAtual]();
+  posRenderHooks[telaAtual]?.();
+  renderFab();
+}
+
+const posRenderHooks = {};
+
+function renderFab() {
+  let fab = document.getElementById('fabBtn');
+  if (fab) fab.remove();
+  if (telaAtual !== 'produtos') return;
+  fab = document.createElement('button');
+  fab.id = 'fabBtn';
+  fab.className = 'fab';
+  fab.innerHTML = '+';
+  fab.onclick = () => abrirFormProduto();
+  document.body.appendChild(fab);
+}
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+function telaDashboard() {
+  const aberta = DB.isLojaAberta(loja);
+  const pedidos = DB.getPedidos(lojaId);
+  const hoje = new Date().toDateString();
+  const pedidosHoje = pedidos.filter(p => new Date(p.criadoEm).toDateString() === hoje);
+  const faturamentoHoje = pedidosHoje.reduce((s, p) => s + p.total, 0);
+  const pendentes = pedidos.filter(p => p.status !== 'concluido').length;
+
+  return `
+    <div class="status-toggle-card glass fade-up">
+      <div class="left">
+        <span class="dot" style="background:${aberta ? '#34C759' : '#FF3B30'};"></span>
+        <div>
+          <strong style="font-size:14.5px;">${aberta ? 'Loja aberta' : 'Loja fechada'}</strong>
+          <p style="margin:1px 0 0;font-size:12px;color:var(--ink-soft);">${loja.forcarFechado ? 'Fechada manualmente' : 'Seguindo horário programado'}</p>
+        </div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" ${!loja.forcarFechado ? 'checked' : ''} onchange="toggleForcarAberto(this)">
+        <span class="track"></span>
+        <span class="thumb"></span>
+      </label>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card fade-up"><div class="num">${pedidosHoje.length}</div><div class="lbl">Pedidos hoje</div></div>
+      <div class="stat-card fade-up"><div class="num">${formatMoeda(faturamentoHoje)}</div><div class="lbl">Faturamento hoje</div></div>
+      <div class="stat-card fade-up"><div class="num">${loja.produtos.length}</div><div class="lbl">Produtos no cardápio</div></div>
+      <div class="stat-card fade-up"><div class="num">${pendentes}</div><div class="lbl">Pedidos em andamento</div></div>
+    </div>
+
+    <div class="section-title">Acesso rápido</div>
+    <div class="flex-col gap-12">
+      <a href="loja.html?id=${lojaId}" target="_blank" class="btn btn-glass btn-block" style="justify-content:space-between;">
+        <span class="icon-inline-row">${Icon.eye({size: 17})} Ver cardápio como cliente</span><span>${Icon.chevronRight({size: 16})}</span>
+      </a>
+      <button class="btn btn-glass btn-block" style="justify-content:space-between;" onclick="irPara('produtos')">
+        <span class="icon-inline-row">${Icon.plus({size: 17})} Adicionar produto</span><span>${Icon.chevronRight({size: 16})}</span>
+      </button>
+      <button class="btn btn-glass btn-block" style="justify-content:space-between;" onclick="irPara('pedidos')">
+        <span class="icon-inline-row">${Icon.receipt({size: 17})} Ver pedidos</span><span>${Icon.chevronRight({size: 16})}</span>
+      </button>
+    </div>
+  `;
+}
+
+function toggleForcarAberto(checkbox) {
+  loja.forcarFechado = !checkbox.checked;
+  persistir();
+  const dotColor = checkbox.checked ? '#34C759' : '#FF3B30';
+  toast(checkbox.checked ? 'Loja reaberta' : 'Loja fechada manualmente', {
+    icon: `<svg width="14" height="14" viewBox="0 0 10 10" style="color:${dotColor};"><circle cx="5" cy="5" r="5" fill="currentColor"/></svg>`
+  });
+  renderTela();
+}
+
+/* =========================================================
+   PRODUTOS
+   ========================================================= */
+function telaProdutos() {
+  return `
+    <div class="cat-chip-row" id="prodCatChips"></div>
+    <div id="prodList"></div>
+  `;
+}
+
+posRenderHooks.produtos = function () {
+  const chips = document.getElementById('prodCatChips');
+  const cats = [{ id: 'all', nome: 'Todos' }, ...loja.categorias.slice().sort((a, b) => a.ordem - b.ordem)];
+  chips.innerHTML = cats.map(c => `
+    <button class="cat-chip ${categoriaFiltro === c.id ? 'active' : ''}" onclick="filtrarProdutos('${c.id}')">${c.nome}</button>
+  `).join('');
+  renderProdList();
+};
+
+function filtrarProdutos(catId) {
+  categoriaFiltro = catId;
+  posRenderHooks.produtos();
+}
+
+function renderProdList() {
+  const list = document.getElementById('prodList');
+  const produtos = categoriaFiltro === 'all' ? loja.produtos : loja.produtos.filter(p => p.categoriaId === categoriaFiltro);
+
+  if (!produtos.length) {
+    list.innerHTML = `<div class="empty-state"><div class="emoji">${Icon.bowl({size: 44})}</div><h3>Nenhum produto aqui</h3><p>Toque no botão + para adicionar.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = produtos.map(p => `
+    <div class="admin-product-row ${!p.disponivel ? 'is-off' : ''}">
+      <img src="${p.foto}">
+      <div class="info">
+        <h4>${p.nome}</h4>
+        <div class="meta">${formatMoeda(p.preco)} · ${categoriaNome(p.categoriaId)}</div>
+      </div>
+      <div class="actions">
+        <label class="switch" style="transform:scale(0.85);">
+          <input type="checkbox" ${p.disponivel ? 'checked' : ''} onchange="toggleProdutoDisponivel('${p.id}', this)">
+          <span class="track"></span>
+          <span class="thumb"></span>
+        </label>
+        <button class="btn-icon btn-ghost" style="border:none;font-size:15px;" onclick="abrirFormProduto('${p.id}')">${Icon.edit({size: 16})}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function categoriaNome(catId) {
+  return loja.categorias.find(c => c.id === catId)?.nome || '—';
+}
+
+function toggleProdutoDisponivel(id, checkbox) {
+  const p = loja.produtos.find(pr => pr.id === id);
+  p.disponivel = checkbox.checked;
+  persistir();
+  toast(p.disponivel ? `${p.nome} disponível` : `${p.nome} pausado`);
+  renderProdList();
+}
+
+function abrirFormProduto(produtoId) {
+  const editando = !!produtoId;
+  const p = editando ? loja.produtos.find(pr => pr.id === produtoId) : { nome: '', descricao: '', preco: '', foto: '', categoriaId: loja.categorias[0]?.id, disponivel: true };
+
+  document.getElementById('produtoFormTitle').textContent = editando ? 'Editar produto' : 'Novo produto';
+  document.getElementById('produtoFormBody').innerHTML = `
+    <div class="field">
+      <label>Foto (URL da imagem)</label>
+      <input id="pf_foto" value="${p.foto}" placeholder="https://...">
+    </div>
+    ${p.foto ? `<img src="${p.foto}" style="width:100%;height:160px;object-fit:cover;border-radius:16px;margin-bottom:14px;" onerror="this.style.display='none'">` : ''}
+    <div class="field">
+      <label>Nome do produto</label>
+      <input id="pf_nome" value="${p.nome}" placeholder="Ex: Smash Clássico">
+    </div>
+    <div class="field">
+      <label>Descrição</label>
+      <textarea id="pf_descricao" placeholder="Ingredientes, modo de preparo...">${p.descricao}</textarea>
+    </div>
+    <div class="flex gap-12">
+      <div class="field" style="flex:1;">
+        <label>Preço (R$)</label>
+        <input id="pf_preco" type="number" step="0.01" value="${p.preco}" placeholder="0,00">
+      </div>
+      <div class="field" style="flex:1;">
+        <label>Categoria</label>
+        <select id="pf_categoria">
+          ${loja.categorias.map(c => `<option value="${c.id}" ${c.id === p.categoriaId ? 'selected' : ''}>${c.nome}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="flex items-center gap-12" style="margin-bottom:20px;">
+      <label class="switch">
+        <input type="checkbox" id="pf_disponivel" ${p.disponivel ? 'checked' : ''}>
+        <span class="track"></span>
+        <span class="thumb"></span>
+      </label>
+      <span style="font-size:14px;font-weight:600;">Disponível no cardápio</span>
+    </div>
+    <div class="toolbar-row">
+      ${editando ? `<button class="btn btn-ghost" style="color:#D70015;border-color:rgba(255,59,48,0.3);" onclick="excluirProduto('${produtoId}')">Excluir</button>` : ''}
+      <button class="btn btn-primary" onclick="salvarProduto('${produtoId || ''}')">${editando ? 'Salvar alterações' : 'Adicionar produto'}</button>
+    </div>
+  `;
+  abrirSheetAdmin('sheetProdutoForm', 'overlayProdutoForm');
+}
+
+function salvarProduto(produtoId) {
+  const nome = document.getElementById('pf_nome').value.trim();
+  const preco = parseFloat(document.getElementById('pf_preco').value);
+  const foto = document.getElementById('pf_foto').value.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80';
+
+  if (!nome || isNaN(preco)) {
+    toast('Preencha nome e preço corretamente', { icon: Icon.warning({size: 16}) });
+    return;
+  }
+
+  const dados = {
+    nome, foto,
+    descricao: document.getElementById('pf_descricao').value.trim(),
+    preco,
+    categoriaId: document.getElementById('pf_categoria').value,
+    disponivel: document.getElementById('pf_disponivel').checked,
+  };
+
+  if (produtoId) {
+    const p = loja.produtos.find(pr => pr.id === produtoId);
+    Object.assign(p, dados);
+    toast('Produto atualizado');
+  } else {
+    loja.produtos.push({ id: DB.uid('p'), ...dados });
+    toast('Produto adicionado');
+  }
+  persistir();
+  fecharSheetAdmin('sheetProdutoForm', 'overlayProdutoForm');
+  renderProdList();
+}
+
+function excluirProduto(produtoId) {
+  loja.produtos = loja.produtos.filter(p => p.id !== produtoId);
+  persistir();
+  fecharSheetAdmin('sheetProdutoForm', 'overlayProdutoForm');
+  toast('Produto excluído');
+  renderProdList();
+}
+
+/* =========================================================
+   CATEGORIAS
+   ========================================================= */
+function telaCategorias() {
+  const cats = loja.categorias.slice().sort((a, b) => a.ordem - b.ordem);
+  return `
+    <p style="font-size:13px;color:var(--ink-soft);margin:4px 4px 16px;">Organize as abas do seu cardápio. Use as flechas para reordenar — a ordem aqui é a ordem que o cliente vê.</p>
+    <div id="catList">
+      ${cats.map((c, i) => `
+        <div class="admin-product-row">
+          <div class="info">
+            <h4>${c.nome}</h4>
+            <div class="meta">${loja.produtos.filter(p => p.categoriaId === c.id).length} produto(s)</div>
+          </div>
+          <div class="actions">
+            <button class="btn-icon btn-ghost" style="border:none;" ${i === 0 ? 'disabled' : ''} onclick="moverCategoria('${c.id}', -1)">${Icon.chevronUp({size: 16})}</button>
+            <button class="btn-icon btn-ghost" style="border:none;" ${i === cats.length - 1 ? 'disabled' : ''} onclick="moverCategoria('${c.id}', 1)">${Icon.chevronDown({size: 16})}</button>
+            <button class="btn-icon btn-ghost" style="border:none;font-size:15px;" onclick="abrirFormCategoria('${c.id}')">${Icon.edit({size: 16})}</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:8px;" onclick="abrirFormCategoria()">+ Nova categoria</button>
+  `;
+}
+
+function moverCategoria(catId, dir) {
+  const cats = loja.categorias.slice().sort((a, b) => a.ordem - b.ordem);
+  const idx = cats.findIndex(c => c.id === catId);
+  const targetIdx = idx + dir;
+  if (targetIdx < 0 || targetIdx >= cats.length) return;
+  [cats[idx].ordem, cats[targetIdx].ordem] = [cats[targetIdx].ordem, cats[idx].ordem];
+  persistir();
+  renderTela();
+}
+
+function abrirFormCategoria(catId) {
+  const editando = !!catId;
+  const c = editando ? loja.categorias.find(cc => cc.id === catId) : { nome: '' };
+  document.getElementById('categoriaFormTitle').textContent = editando ? 'Editar categoria' : 'Nova categoria';
+  document.getElementById('categoriaFormBody').innerHTML = `
+    <div class="field">
+      <label>Nome da categoria</label>
+      <input id="cf_nome" value="${c.nome}" placeholder="Ex: Bebidas, Sobremesas...">
+    </div>
+    <div class="toolbar-row">
+      ${editando ? `<button class="btn btn-ghost" style="color:#D70015;border-color:rgba(255,59,48,0.3);" onclick="excluirCategoria('${catId}')">Excluir</button>` : ''}
+      <button class="btn btn-primary" onclick="salvarCategoria('${catId || ''}')">${editando ? 'Salvar' : 'Criar categoria'}</button>
+    </div>
+  `;
+  abrirSheetAdmin('sheetCategoriaForm', 'overlayCategoriaForm');
+}
+
+function salvarCategoria(catId) {
+  const nome = document.getElementById('cf_nome').value.trim();
+  if (!nome) { toast('Digite um nome', { icon: Icon.warning({size: 16}) }); return; }
+
+  if (catId) {
+    loja.categorias.find(c => c.id === catId).nome = nome;
+    toast('Categoria atualizada');
+  } else {
+    const maxOrdem = Math.max(-1, ...loja.categorias.map(c => c.ordem));
+    loja.categorias.push({ id: DB.uid('cat'), nome, ordem: maxOrdem + 1 });
+    toast('Categoria criada');
+  }
+  persistir();
+  fecharSheetAdmin('sheetCategoriaForm', 'overlayCategoriaForm');
+  renderTela();
+}
+
+function excluirCategoria(catId) {
+  const temProdutos = loja.produtos.some(p => p.categoriaId === catId);
+  if (temProdutos) {
+    toast('Mova ou exclua os produtos desta categoria primeiro', { icon: Icon.warning({size: 16}) });
+    return;
+  }
+  loja.categorias = loja.categorias.filter(c => c.id !== catId);
+  persistir();
+  fecharSheetAdmin('sheetCategoriaForm', 'overlayCategoriaForm');
+  toast('Categoria excluída');
+  renderTela();
+}
+
+/* =========================================================
+   HORÁRIOS
+   ========================================================= */
+function telaHorarios() {
+  return `
+    <p style="font-size:13px;color:var(--ink-soft);margin:4px 4px 16px;">Defina os horários de funcionamento. Fora desse período, os clientes podem ver o cardápio mas não conseguem fazer pedidos.</p>
+    <div class="glass" style="border-radius:var(--r-lg);padding:6px 12px;margin-bottom:20px;">
+      ${DB.NOMES_DIAS.map((nome, i) => {
+        const h = loja.horarios[i];
+        return `
+          <div class="day-row">
+            <label class="switch" style="transform:scale(0.85);">
+              <input type="checkbox" ${h.ativo ? 'checked' : ''} onchange="setHorarioAtivo(${i}, this.checked)">
+              <span class="track"></span>
+              <span class="thumb"></span>
+            </label>
+            <span class="day-name" style="text-transform:capitalize;">${nome}</span>
+            ${h.ativo ? `
+              <input type="time" value="${h.abre}" onchange="setHorario(${i}, 'abre', this.value)">
+              <span class="to-label">até</span>
+              <input type="time" value="${h.fecha}" onchange="setHorario(${i}, 'fecha', this.value)">
+            ` : `<span class="text-faint" style="font-size:12.5px;">Fechado</span>`}
+          </div>
+        `;
+      }).join('')}
+    </div>
+
+    <div class="section-title">Tempo médio de preparo + entrega</div>
+    <div class="glass" style="border-radius:var(--r-lg);padding:18px;">
+      <div class="flex gap-12">
+        <div class="field" style="flex:1;margin-bottom:0;">
+          <label>Mínimo (min)</label>
+          <input type="number" value="${loja.tempoMedioMin}" onchange="loja.tempoMedioMin = parseInt(this.value)||0; persistir(); toast('Atualizado')">
+        </div>
+        <div class="field" style="flex:1;margin-bottom:0;">
+          <label>Máximo (min)</label>
+          <input type="number" value="${loja.tempoMedioMax}" onchange="loja.tempoMedioMax = parseInt(this.value)||0; persistir(); toast('Atualizado')">
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setHorarioAtivo(dia, ativo) {
+  loja.horarios[dia].ativo = ativo;
+  persistir();
+  renderTela();
+}
+function setHorario(dia, campo, valor) {
+  loja.horarios[dia][campo] = valor;
+  persistir();
+  toast('Horário atualizado');
+}
+
+/* =========================================================
+   PEDIDOS — Kanban
+   ========================================================= */
+let pedidosPollingInterval = null;
+
+const COLUNAS = [
+  {
+    id: 'recebido',
+    cls: 'col-recebido',
+    title: 'Recebido',
+    statuses: ['recebido'],
+  },
+  {
+    id: 'preparo',
+    cls: 'col-preparo',
+    title: 'Em preparo',
+    statuses: ['preparo'],
+  },
+  {
+    id: 'transito',
+    cls: 'col-transito',
+    title: 'Saiu / Pronto',
+    statuses: ['caminho', 'pronto'],
+  },
+  {
+    id: 'concluido',
+    cls: 'col-concluido',
+    title: 'Concluído',
+    statuses: ['concluido'],
+  },
+];
+
+function tempoDecorrido(ts) {
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1) return 'agora';
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
+
+function cardPedido(p) {
+  const mins = Math.floor((Date.now() - p.criadoEm) / 60000);
+  const urgente = mins > 30 && p.status !== 'concluido';
+  const horario = new Date(p.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const itensStr = p.itens.map(i => `${i.qtd}× ${i.nome}`).join(', ');
+  const isEntrega = p.tipoEntrega === 'entrega';
+  const acoes = acoesCard(p);
+
+  return `
+    <div class="order-card" id="card-${p.id}">
+      <div class="order-card-top">
+        <div class="order-card-head">
+          <span class="order-card-num">${p.numero}</span>
+          <span class="order-card-time">${horario}</span>
+        </div>
+        <span class="order-card-tipo ${isEntrega ? 'tipo-entrega' : 'tipo-retirada'}">
+          ${isEntrega ? Icon.bike({size: 12}) : Icon.walk({size: 12})}
+          ${isEntrega ? 'Entrega' : 'Retirada'}
+        </span>
+        <div class="order-card-items">${itensStr}</div>
+        ${p.cliente?.nome ? `
+          <div class="order-card-endereco" style="margin-top:4px;">
+            ${Icon.user({size: 11})} ${p.cliente.nome}${p.cliente.celular ? ` · ${p.cliente.celular}` : ''}
+          </div>` : ''}
+        ${p.endereco ? `<div class="order-card-endereco">${Icon.pin({size: 11})} ${p.endereco.rua}, ${p.endereco.numero} — ${p.endereco.bairro}</div>` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+          <span class="order-card-valor">${formatMoeda(p.total)}</span>
+          <span class="order-timer ${urgente ? 'urgent' : ''}">
+            ${Icon.clock({size: 11})} ${tempoDecorrido(p.criadoEm)}
+          </span>
+        </div>
+      </div>
+      ${acoes ? `<div class="order-card-actions">${acoes}</div>` : ''}
+    </div>
+  `;
+}
+
+function acoesCard(p) {
+  const isEntrega = p.tipoEntrega === 'entrega';
+  switch (p.status) {
+    case 'recebido':
+      return `
+        <button class="btn btn-primary" onclick="moverPedido('${p.id}', 'preparo')">
+          ${Icon.check({size: 14})} Confirmar e preparar
+        </button>
+      `;
+    case 'preparo':
+      return isEntrega
+        ? `<button class="btn btn-primary" onclick="moverPedido('${p.id}', 'caminho')">
+            ${Icon.bike({size: 14})} Saiu para entrega
+           </button>`
+        : `<button class="btn btn-primary" onclick="moverPedido('${p.id}', 'pronto')">
+            ${Icon.check({size: 14})} Pronto para retirada
+           </button>`;
+    case 'caminho':
+    case 'pronto':
+      return `
+        <button class="btn btn-primary" onclick="moverPedido('${p.id}', 'concluido')"
+          style="background:linear-gradient(135deg,#34C759,#248A3D);box-shadow:0 4px 14px rgba(52,199,89,0.4);">
+          ${Icon.checkCircle({size: 14})} ${isEntrega ? 'Entregue' : 'Retirado'}
+        </button>
+      `;
+    case 'concluido':
+      return ''; // sem ações, pedido fechado
+  }
+}
+
+function moverPedido(pedidoId, novoStatus) {
+  DB.updatePedidoStatus(lojaId, pedidoId, novoStatus);
+
+  // animação de saída do card
+  const card = document.getElementById(`card-${pedidoId}`);
+  if (card) {
+    card.style.transition = 'opacity 0.25s, transform 0.25s';
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.92)';
+    setTimeout(() => renderKanban(), 260);
+  } else {
+    renderKanban();
+  }
+
+  const labels = {
+    preparo: 'Pedido em preparo!',
+    caminho: 'Saiu para entrega!',
+    pronto: 'Pronto para retirada!',
+    concluido: 'Pedido concluído!',
+  };
+  toast(labels[novoStatus] || 'Status atualizado', {
+    icon: novoStatus === 'concluido' ? Icon.checkCircle({size: 16}) : Icon.check({size: 16}),
+  });
+}
+
+function renderKanban() {
+  const wrap = document.getElementById('kanbanWrap');
+  if (!wrap) return;
+
+  const pedidos = DB.getPedidos(lojaId);
+
+  wrap.innerHTML = COLUNAS.map(col => {
+    const cards = pedidos.filter(p => col.statuses.includes(p.status));
+    return `
+      <div class="kanban-col ${col.cls}">
+        <div class="kanban-header">
+          <span class="col-dot"></span>
+          <span class="col-title">${col.title}</span>
+          ${cards.length ? `<span class="col-count">${cards.length}</span>` : ''}
+        </div>
+        <div class="kanban-body">
+          ${cards.length
+            ? cards.map(p => cardPedido(p)).join('')
+            : `<div class="kanban-empty">
+                ${Icon.receipt({size: 28})}
+                <p style="margin:0;">Nenhum pedido</p>
+               </div>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Atualizar badge no nav
+  const pendentes = pedidos.filter(p => p.status === 'recebido').length;
+  const navPedidos = document.querySelector('.nav-item[onclick*="pedidos"]');
+  if (navPedidos) {
+    const dot = navPedidos.querySelector('.notif-dot');
+    if (pendentes > 0 && !dot) {
+      navPedidos.insertAdjacentHTML('beforeend', '<span class="notif-dot"></span>');
+    } else if (pendentes === 0 && dot) {
+      dot.remove();
+    }
+  }
+}
+
+function telaPedidos() {
+  // Inicia polling ao entrar na tela
+  iniciarPollingPedidos();
+  return `
+    <div style="margin: -4px 0 10px; display:flex; align-items:center; justify-content:space-between;">
+      <p style="margin:0;font-size:13px;color:var(--ink-soft);">Atualizando automaticamente</p>
+      <button class="btn btn-glass btn-sm" onclick="renderKanban()">${Icon.check({size: 14})} Atualizar</button>
+    </div>
+    <div class="kanban-wrap" id="kanbanWrap"></div>
+  `;
+}
+
+posRenderHooks.pedidos = function() {
+  renderKanban();
+};
+
+function iniciarPollingPedidos() {
+  pararPollingPedidos();
+  pedidosPollingInterval = setInterval(() => {
+    if (telaAtual === 'pedidos') renderKanban();
+    else pararPollingPedidos();
+  }, 4000);
+}
+
+function pararPollingPedidos() {
+  if (pedidosPollingInterval) {
+    clearInterval(pedidosPollingInterval);
+    pedidosPollingInterval = null;
+  }
+}
+
+function atualizarStatusPedido(pedidoId, novoStatus) {
+  DB.updatePedidoStatus(lojaId, pedidoId, novoStatus);
+  toast('Status atualizado');
+  renderTela();
+}
+
+/* =========================================================
+   CONFIGURAÇÕES DA LOJA
+   ========================================================= */
+const coresPreset = ['#FF6B35', '#C8102E', '#0A84FF', '#34C759', '#AF52DE', '#FF9F0A', '#1A1A1A'];
+
+function telaConfig() {
+  return `
+    <div class="section-title">Identidade visual</div>
+    <div class="glass" style="border-radius:var(--r-lg);padding:18px;margin-bottom:18px;">
+      <div class="field">
+        <label>Nome da loja</label>
+        <input id="cfg_nome" value="${loja.nome}">
+      </div>
+      <div class="field">
+        <label>Slogan / descrição curta</label>
+        <input id="cfg_slogan" value="${loja.slogan}">
+      </div>
+      <div class="field">
+        <label>Logo (URL da imagem)</label>
+        <input id="cfg_logo" value="${loja.logoUrl}" placeholder="https://...">
+      </div>
+      <div class="field">
+        <label>Cor principal da marca</label>
+        <div class="color-swatch-row">
+          ${coresPreset.map(c => `<div class="color-swatch ${loja.corPrimaria === c ? 'selected' : ''}" style="background:${c};" onclick="selecionarCor('${c}')"></div>`).join('')}
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="salvarConfigGeral()">Salvar identidade</button>
+    </div>
+
+    <div class="section-title">Pedidos e WhatsApp</div>
+    <div class="glass" style="border-radius:var(--r-lg);padding:18px;margin-bottom:18px;">
+      <div class="field">
+        <label>WhatsApp da loja (com DDI + DDD)</label>
+        <input id="cfg_whatsapp" value="${loja.whatsapp || ''}" placeholder="5511999999999">
+      </div>
+      <div class="flex gap-12">
+        <div class="field" style="flex:1;">
+          <label>Pedido mínimo (R$)</label>
+          <input id="cfg_minimo" type="number" step="0.01" value="${loja.pedidoMinimo}">
+        </div>
+        <div class="field" style="flex:1;">
+          <label>Taxa de entrega (R$)</label>
+          <input id="cfg_taxa" type="number" step="0.01" value="${loja.taxaEntrega}">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="salvarConfigPedidos()">Salvar configurações</button>
+    </div>
+
+    <div class="section-title">Acesso</div>
+    <div class="glass" style="border-radius:var(--r-lg);padding:18px;">
+      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 14px;">Usuário atual: <strong style="color:var(--ink);">${loja.usuario}</strong></p>
+      <div class="field">
+        <label>Nova senha</label>
+        <input id="cfg_senha" type="password" placeholder="Deixe em branco para manter a atual">
+      </div>
+      <button class="btn btn-ghost btn-block" onclick="salvarSenha()">Atualizar senha</button>
+    </div>
+  `;
+}
+
+function selecionarCor(cor) {
+  loja.corPrimaria = cor;
+  persistir();
+  aplicarTemaLoja(loja);
+  renderHeader();
+  renderTela();
+}
+
+function salvarConfigGeral() {
+  loja.nome = document.getElementById('cfg_nome').value.trim();
+  loja.slogan = document.getElementById('cfg_slogan').value.trim();
+  loja.logoUrl = document.getElementById('cfg_logo').value.trim();
+  persistir();
+  renderHeader();
+  toast('Identidade visual atualizada');
+}
+
+function salvarConfigPedidos() {
+  loja.whatsapp = document.getElementById('cfg_whatsapp').value.trim();
+  loja.pedidoMinimo = parseFloat(document.getElementById('cfg_minimo').value) || 0;
+  loja.taxaEntrega = parseFloat(document.getElementById('cfg_taxa').value) || 0;
+  persistir();
+  toast('Configurações salvas');
+}
+
+function salvarSenha() {
+  const nova = document.getElementById('cfg_senha').value;
+  if (nova) {
+    loja.senha = nova;
+    persistir();
+    toast('Senha atualizada');
+    document.getElementById('cfg_senha').value = '';
+  }
+}
+
+/* =========================================================
+   Sheets helpers
+   ========================================================= */
+function abrirSheetAdmin(sheetId, overlayId) {
+  document.getElementById(sheetId).classList.add('open');
+  document.getElementById(overlayId).classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function fecharSheetAdmin(sheetId, overlayId) {
+  document.getElementById(sheetId).classList.remove('open');
+  document.getElementById(overlayId).classList.remove('open');
+  document.body.style.overflow = '';
+}
+['ProdutoForm', 'CategoriaForm'].forEach(name => {
+  document.getElementById(`overlay${name}`).addEventListener('click', () => fecharSheetAdmin(`sheet${name}`, `overlay${name}`));
+});
+
+/* =========================================================
+   Init
+   ========================================================= */
+renderHeader();
+renderNav();
+renderTela();
+
+// Polling de badge no nav (indica pedidos novos em qualquer tela)
+setInterval(() => {
+  if (telaAtual !== 'pedidos') {
+    const pendentes = DB.getPedidos(lojaId).filter(p => p.status === 'recebido').length;
+    const navPedidos = document.querySelector('.nav-item[onclick*="pedidos"]');
+    if (navPedidos) {
+      const dot = navPedidos.querySelector('.notif-dot');
+      if (pendentes > 0 && !dot) navPedidos.insertAdjacentHTML('beforeend', '<span class="notif-dot"></span>');
+      else if (pendentes === 0 && dot) dot.remove();
+    }
+  }
+}, 5000);
+</script>
+</body>
+</html>

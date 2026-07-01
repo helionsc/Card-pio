@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cardápio</title>
+<link rel="stylesheet" href="css/glass.css">
+<style>
+  body { min-height: 100vh; padding-bottom: 110px; }
+
+  /* ---------- Header / Hero da loja ---------- */
+  .hero {
+    position: relative;
+    padding: 18px 20px 20px;
+    color: #fff;
+    background: linear-gradient(160deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 60%, #1a1a1a) 100%);
+    border-radius: 0 0 32px 32px;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 80% -10%, rgba(255,255,255,0.25), transparent 60%);
+  }
+  .hero-top { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
+  .hero-back {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,0.22);
+    backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 18px;
+  }
+  .hero-actions { display: flex; gap: 8px; }
+  .hero-icon-btn {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,0.22);
+    backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px; border: none;
+  }
+
+  .hero-store { display: flex; gap: 14px; align-items: center; margin-top: 18px; position: relative; z-index: 1; }
+  .hero-logo {
+    width: 64px; height: 64px; border-radius: 18px;
+    background: rgba(255,255,255,0.25);
+    backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; flex-shrink: 0;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
+  .hero-logo img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-store h1 { margin: 0 0 4px; font-size: 21px; font-weight: 750; letter-spacing: -0.01em; }
+  .hero-store .meta { font-size: 12.5px; opacity: 0.9; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .hero-stats {
+    display: flex; gap: 8px; margin-top: 16px; position: relative; z-index: 1;
+  }
+  .hero-stat {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(10px);
+    border-radius: 14px;
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+  .hero-stat strong { display: block; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+
+  .closed-banner {
+    margin: 0 20px -4px;
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    background: rgba(255,59,48,0.12);
+    border: 1px solid rgba(255,59,48,0.25);
+    color: #B00020;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ---------- Tabs sticky ---------- */
+  .tabs-sticky {
+    position: sticky; top: 0; z-index: 50;
+    padding: 14px 0 12px;
+    margin-top: 16px;
+  }
+  .tabs-scroll {
+    display: flex; gap: 8px;
+    overflow-x: auto;
+    padding: 0 20px;
+    scrollbar-width: none;
+  }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    flex-shrink: 0;
+    padding: 10px 18px;
+    border-radius: var(--r-pill);
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(16px) saturate(1.5);
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    border: 1px solid rgba(255,255,255,0.5);
+    font-size: 13.5px; font-weight: 600; color: var(--ink-soft);
+    transition: all 0.3s var(--ease-spring);
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: var(--brand); color: #fff; border-color: transparent;
+    box-shadow: 0 4px 14px rgba(var(--brand-rgb), 0.4);
+    transform: scale(1.04);
+  }
+
+  /* ---------- Conteúdo do cardápio ---------- */
+  .menu-content { padding: 4px 20px 20px; }
+  .cat-section { padding-top: 18px; }
+  .cat-section h2 {
+    font-size: 19px; font-weight: 750; letter-spacing: -0.01em;
+    margin: 0 0 12px; padding-left: 2px;
+  }
+  .product-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .empty-cat {
+    text-align: center; padding: 30px 0; color: var(--ink-faint); font-size: 13.5px;
+  }
+
+  /* ---------- Carrinho flutuante ---------- */
+  .cart-bar {
+    position: fixed; left: 20px; right: 20px; bottom: 20px;
+    z-index: 200;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 10px 14px 20px;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(var(--brand-rgb), 0.45);
+    transform: translateY(120px);
+    opacity: 0;
+    transition: transform 0.45s var(--ease-spring), opacity 0.3s;
+  }
+  .cart-bar.visible { transform: translateY(0); opacity: 1; }
+  .cart-bar .cart-info { display: flex; align-items: center; gap: 10px; }
+  .cart-bar .cart-count {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 700;
+  }
+  .cart-bar .cart-total { font-size: 15px; font-weight: 700; }
+  .cart-bar .cart-cta {
+    background: rgba(255,255,255,0.22);
+    padding: 11px 18px; border-radius: var(--r-pill);
+    font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* ---------- Stepper de quantidade ---------- */
+  .stepper {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(120,120,128,0.1);
+    border-radius: var(--r-pill);
+    padding: 6px;
+  }
+  .stepper button {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: none; background: #fff;
+    font-size: 17px; font-weight: 700; color: var(--brand);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    transition: transform 0.15s var(--ease-spring);
+  }
+  .stepper button:active { transform: scale(0.88); }
+  .stepper button.primary { background: var(--brand); color: #fff; }
+  .stepper span { min-width: 22px; text-align: center; font-weight: 700; font-size: 15px; }
+
+  .cart-item-mini {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(60,60,67,0.08);
+  }
+  .cart-item-mini:last-child { border-bottom: none; }
+  .cart-item-mini img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; }
+  .cart-item-mini .ci-info { flex: 1; }
+  .cart-item-mini .ci-info h4 { margin: 0 0 2px; font-size: 14px; font-weight: 650; }
+  .cart-item-mini .ci-info .ci-price { font-size: 13px; color: var(--ink-soft); }
+
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; font-size: 14.5px; color: var(--ink-soft);
+  }
+  .summary-row.total { font-size: 17px; font-weight: 750; color: var(--ink); padding-top: 14px; border-top: 1px solid rgba(60,60,67,0.1); margin-top: 6px; }
+
+  .seg-control {
+    display: flex; background: rgba(120,120,128,0.1); border-radius: var(--r-pill); padding: 4px; gap: 4px;
+  }
+  .seg-control button {
+    flex: 1; border: none; background: transparent; padding: 10px; border-radius: var(--r-pill);
+    font-size: 13.5px; font-weight: 600; color: var(--ink-soft);
+    transition: all 0.3s var(--ease-spring);
+  }
+  .seg-control button.active { background: #fff; color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+  .pay-option, .addr-option {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; border-radius: var(--r-md);
+    background: rgba(255,255,255,0.55); border: 1.5px solid transparent;
+    margin-bottom: 10px; transition: all 0.2s;
+  }
+  .pay-option.selected, .addr-option.selected {
+    border-color: var(--brand); background: rgba(var(--brand-rgb), 0.08);
+  }
+  .pay-option .radio, .addr-option .radio {
+    width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(60,60,67,0.25);
+    flex-shrink: 0; position: relative;
+  }
+  .pay-option.selected .radio, .addr-option.selected .radio { border-color: var(--brand); }
+  .pay-option.selected .radio::after, .addr-option.selected .radio::after {
+    content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--brand);
+  }
+  .pay-option .icon { font-size: 20px; }
+
+  /* ---------- Status do pedido ---------- */
+  .status-track { display: flex; flex-direction: column; gap: 0; margin: 20px 0; }
+  .status-step { display: flex; gap: 14px; position: relative; padding-bottom: 26px; }
+  .status-step:last-child { padding-bottom: 0; }
+  .status-dot {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(120,120,128,0.15); color: var(--ink-faint);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0; z-index: 1;
+    transition: all 0.4s var(--ease-spring);
+  }
+  .status-step.done .status-dot { background: #34C759; color: #fff; }
+  .status-step.current .status-dot { background: var(--brand); color: #fff; box-shadow: 0 0 0 6px rgba(var(--brand-rgb), 0.18); }
+  .status-step .line {
+    position: absolute; left: 14px; top: 30px; width: 2px; height: calc(100% - 30px);
+    background: rgba(120,120,128,0.15);
+  }
+  .status-step.done .line { background: #34C759; }
+  .status-step .stext h4 { margin: 0 0 2px; font-size: 14.5px; font-weight: 650; }
+  .status-step .stext p { margin: 0; font-size: 12.5px; color: var(--ink-faint); }
+  .status-step.current .stext h4 { color: var(--brand); }
+
+  .floating-order-pill {
+    position: fixed; left: 20px; right: 20px; bottom: 20px; z-index: 199;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-radius: var(--r-pill);
+    animation: fadeUp 0.4s var(--ease-out) both;
+  }
+  .floating-order-pill .dot-pulse {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--brand);
+    animation: pulse 1.6s ease infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
+
+  .empty-state { text-align: center; padding: 60px 24px; }
+  .empty-state .emoji { font-size: 56px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 17px; margin: 0 0 8px; }
+  .empty-state p { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+</style>
+</head>
+<body>
+<div class="ambient-bg"></div>
+
+<div id="app"></div>
+
+<!-- ===== Sheet: Detalhe do produto ===== -->
+<div class="sheet-overlay" id="overlayProduto"></div>
+<div class="sheet" id="sheetProduto">
+  <div class="sheet-handle"></div>
+  <div class="sheet-body" id="sheetProdutoBody"></div>
+</div>
+
+<!-- ===== Sheet: Carrinho ===== -->
+<div class="sheet-overlay" id="overlayCarrinho"></div>
+<div class="sheet" id="sheetCarrinho" style="max-height:88vh;">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header flex justify-between items-center">
+    <h2 style="margin:0;font-size:18px;font-weight:750;">Seu carrinho</h2>
+    <button class="btn-icon btn-ghost" onclick="fecharCarrinho()" style="border:none;" data-icon="close" data-icon-size="17"></button>
+  </div>
+  <div class="sheet-body" id="sheetCarrinhoBody"></div>
+</div>
+
+<!-- ===== Sheet: Checkout ===== -->
+<div class="sheet-overlay" id="overlayCheckout"></div>
+<div class="sheet" id="sheetCheckout" style="max-height:92vh;">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header flex justify-between items-center">
+    <h2 style="margin:0;font-size:18px;font-weight:750;" id="checkoutTitle">Finalizar pedido</h2>
+    <button class="btn-icon btn-ghost" onclick="fecharCheckout()" style="border:none;" data-icon="close" data-icon-size="17"></button>
+  </div>
+  <div class="sheet-body" id="sheetCheckoutBody"></div>
+</div>
+
+<!-- ===== Sheet: Endereço (novo/editar) ===== -->
+<div class="sheet-overlay" id="overlayEndereco"></div>
+<div class="sheet" id="sheetEndereco">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header flex justify-between items-center">
+    <h2 style="margin:0;font-size:18px;font-weight:750;">Novo endereço</h2>
+    <button class="btn-icon btn-ghost" onclick="fecharEndereco()" style="border:none;" data-icon="close" data-icon-size="17"></button>
+  </div>
+  <div class="sheet-body" id="sheetEnderecoBody"></div>
+</div>
+
+<script src="js/icons.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script>
+/* =========================================================
+   Estado da aplicação
+   ========================================================= */
+const lojaId = getQueryParam('id') || DB.listLojaIds()[0];
+DB.seedIfEmpty();
+let loja = DB.getLoja(lojaId);
+let carrinho = DB.getCarrinho(lojaId);
+let categoriaAtiva = null;
+let pedidoAtivo = null; // pedido em acompanhamento
+(function recuperarPedidoAtivo() {
+  const pedidos = DB.getPedidos(lojaId);
+  const aberto = pedidos.find(p => p.status !== 'concluido');
+  if (aberto) pedidoAtivo = aberto;
+})();
+
+if (!loja) {
+  document.getElementById('app').innerHTML = `
+    <div class="empty-state">
+      <div class="emoji">${Icon.search404({size: 48})}</div>
+      <h3>Loja não encontrada</h3>
+      <p>Verifique o link e tente novamente.</p>
+    </div>`;
+  throw new Error('Loja não encontrada');
+}
+
+aplicarTemaLoja(loja);
+
+/* =========================================================
+   Render principal
+   ========================================================= */
+function render() {
+  const aberta = DB.isLojaAberta(loja);
+  const proximaAbertura = DB.proximoHorario(loja);
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="hero fade-up">
+      <div class="hero-top">
+        <a href="index.html" class="hero-back">${Icon.chevronLeft({size: 20})}</a>
+        <div class="hero-actions">
+          <button class="hero-icon-btn" onclick="abrirEnderecos()" title="Endereços">${Icon.pin({size: 18})}</button>
+        </div>
+      </div>
+      <div class="hero-store">
+        <div class="hero-logo">${loja.logoUrl ? `<img src="${loja.logoUrl}">` : Icon.bowl({size: 30})}</div>
+        <div>
+          <h1>${loja.nome}</h1>
+          <div class="meta">
+            <span class="badge icon-inline-row ${aberta ? 'badge-open' : 'badge-closed'}"><svg width="7" height="7" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="currentColor"/></svg> ${aberta ? 'Aberto agora' : 'Fechado'}</span>
+            <span>${loja.slogan}</span>
+          </div>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat icon-inline-row">${Icon.clock({size: 15})} <strong>${loja.tempoMedioMin}–${loja.tempoMedioMax} min</strong></div>
+        <div class="hero-stat icon-inline-row">${Icon.bike({size: 15})} <strong>${formatMoeda(loja.taxaEntrega)}</strong></div>
+        <div class="hero-stat icon-inline-row">${Icon.receipt({size: 15})} <strong>Mín. ${formatMoeda(loja.pedidoMinimo)}</strong></div>
+      </div>
+    </div>
+
+    ${!aberta ? `
+      <div class="closed-banner pop-in">
+        <span style="flex-shrink:0;">${Icon.clock({size: 18})}</span>
+        <span>Loja fechada agora${proximaAbertura ? ` · Abre ${proximaAbertura.dia} às ${proximaAbertura.hora}` : ''}. Você pode navegar pelo cardápio, mas não é possível fazer pedidos.</span>
+      </div>
+    ` : ''}
+
+    <div class="tabs-sticky">
+      <div class="tabs-scroll" id="tabsScroll"></div>
+    </div>
+
+    <div class="menu-content" id="menuContent"></div>
+  `;
+
+  renderTabs();
+  renderMenu();
+  renderCartBar();
+
+  if (pedidoAtivo) renderFloatingOrderPill();
+}
+
+function categoriasComProdutos() {
+  return loja.categorias
+    .slice()
+    .sort((a, b) => a.ordem - b.ordem)
+    .map(cat => ({ ...cat, produtos: loja.produtos.filter(p => p.categoriaId === cat.id && p.disponivel) }))
+    .filter(cat => cat.produtos.length > 0);
+}
+
+function renderTabs() {
+  const cats = categoriasComProdutos();
+  const tabsEl = document.getElementById('tabsScroll');
+  tabsEl.innerHTML = cats.map(cat => `
+    <button class="tab-btn" data-cat="${cat.id}" onclick="irParaCategoria('${cat.id}')">${cat.nome}</button>
+  `).join('');
+  if (cats.length) categoriaAtiva = cats[0].id;
+  marcarTabAtiva();
+}
+
+function renderMenu() {
+  const cats = categoriasComProdutos();
+  const aberta = DB.isLojaAberta(loja);
+  const menuEl = document.getElementById('menuContent');
+
+  if (!cats.length) {
+    menuEl.innerHTML = `<div class="empty-state"><div class="emoji">${Icon.bowl({size: 48})}</div><h3>Cardápio em preparação</h3><p>Esta loja ainda não adicionou produtos.</p></div>`;
+    return;
+  }
+
+  menuEl.innerHTML = cats.map(cat => `
+    <section class="cat-section" id="sec-${cat.id}" data-cat="${cat.id}">
+      <h2>${cat.nome}</h2>
+      <div class="product-list">
+        ${cat.produtos.map(p => produtoCardHtml(p, aberta)).join('')}
+      </div>
+    </section>
+  `).join('');
+
+  setupScrollSpy();
+}
+
+function produtoCardHtml(p, aberta) {
+  const qtdNoCarrinho = carrinho.filter(i => i.produtoId === p.id).reduce((s, i) => s + i.qtd, 0);
+  return `
+    <div class="product-card ${!aberta ? 'is-disabled' : ''}" onclick="abrirProduto('${p.id}')">
+      <img src="${p.foto}" alt="${p.nome}" loading="lazy">
+      <div class="info">
+        <h3>${p.nome}</h3>
+        <p>${p.descricao}</p>
+        <span class="price">${formatMoeda(p.preco)}</span>
+      </div>
+      ${qtdNoCarrinho > 0 ? `<div style="align-self:center;"><span class="badge" style="background:var(--brand);color:#fff;">${qtdNoCarrinho}</span></div>` : ''}
+    </div>
+  `;
+}
+
+function marcarTabAtiva() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cat === categoriaAtiva);
+  });
+  const activeBtn = document.querySelector(`.tab-btn[data-cat="${categoriaAtiva}"]`);
+  if (activeBtn) activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+}
+
+function irParaCategoria(catId) {
+  categoriaAtiva = catId;
+  marcarTabAtiva();
+  const sec = document.getElementById(`sec-${catId}`);
+  if (sec) {
+    const offset = 130;
+    window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth' });
+  }
+}
+
+let scrollSpyObserver = null;
+function setupScrollSpy() {
+  if (scrollSpyObserver) scrollSpyObserver.disconnect();
+  const sections = document.querySelectorAll('.cat-section');
+  scrollSpyObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        categoriaAtiva = entry.target.dataset.cat;
+        marcarTabAtiva();
+      }
+    });
+  }, { rootMargin: '-140px 0px -65% 0px', threshold: 0 });
+  sections.forEach(sec => scrollSpyObserver.observe(sec));
+}
+
+/* =========================================================
+   Sheet: detalhe do produto
+   ========================================================= */
+let qtdSelecionada = 1;
+let obsSelecionada = '';
+
+function abrirProduto(produtoId) {
+  if (!DB.isLojaAberta(loja)) {
+    toast('Loja fechada — não é possível adicionar itens agora', { icon: Icon.clock({size: 16}) });
+    return;
+  }
+  const p = loja.produtos.find(pr => pr.id === produtoId);
+  if (!p) return;
+  qtdSelecionada = 1;
+  obsSelecionada = '';
+
+  document.getElementById('sheetProdutoBody').innerHTML = `
+    <img src="${p.foto}" style="width:100%;height:220px;object-fit:cover;border-radius:20px;margin-bottom:18px;">
+    <h2 style="margin:0 0 8px;font-size:21px;font-weight:750;letter-spacing:-0.01em;">${p.nome}</h2>
+    <p style="margin:0 0 14px;color:var(--ink-soft);font-size:14.5px;line-height:1.5;">${p.descricao}</p>
+    <p style="margin:0 0 20px;font-size:20px;font-weight:750;">${formatMoeda(p.preco)}</p>
+
+    <div class="field">
+      <label>Alguma observação?</label>
+      <textarea id="obsInput" placeholder="Ex: sem cebola, ponto da carne, etc.">${obsSelecionada}</textarea>
+    </div>
+
+    <div class="flex justify-between items-center" style="margin-top:8px;">
+      <div class="stepper">
+        <button onclick="alterarQtd(-1, ${p.preco})">−</button>
+        <span id="qtdLabel">${qtdSelecionada}</span>
+        <button class="primary" onclick="alterarQtd(1, ${p.preco})">+</button>
+      </div>
+      <button class="btn btn-primary" style="flex:1;margin-left:14px;" onclick="adicionarAoCarrinho('${p.id}')">
+        Adicionar · <span id="totalItemLabel">${formatMoeda(p.preco)}</span>
+      </button>
+    </div>
+  `;
+
+  document.getElementById('obsInput').addEventListener('input', (e) => obsSelecionada = e.target.value);
+
+  abrirSheet('sheetProduto', 'overlayProduto');
+  window.precoAtualSheet = p.preco;
+}
+
+function alterarQtd(delta, preco) {
+  qtdSelecionada = Math.max(1, qtdSelecionada + delta);
+  document.getElementById('qtdLabel').textContent = qtdSelecionada;
+  document.getElementById('totalItemLabel').textContent = formatMoeda(preco * qtdSelecionada);
+}
+
+function adicionarAoCarrinho(produtoId) {
+  const p = loja.produtos.find(pr => pr.id === produtoId);
+  carrinho.push({
+    id: DB.uid('ci'),
+    produtoId: p.id,
+    nome: p.nome,
+    preco: p.preco,
+    foto: p.foto,
+    qtd: qtdSelecionada,
+    obs: obsSelecionada.trim(),
+  });
+  DB.saveCarrinho(lojaId, carrinho);
+  fecharSheet('sheetProduto', 'overlayProduto');
+  toast(`${p.nome} adicionado ao carrinho`);
+  renderMenu();
+  renderCartBar();
+}
+
+/* =========================================================
+   Carrinho
+   ========================================================= */
+function calcularSubtotal() {
+  return carrinho.reduce((s, i) => s + i.preco * i.qtd, 0);
+}
+
+function renderCartBar() {
+  let bar = document.getElementById('cartBar');
+  const totalItens = carrinho.reduce((s, i) => s + i.qtd, 0);
+
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'cartBar';
+    bar.className = 'cart-bar';
+    bar.onclick = abrirCarrinho;
+    document.body.appendChild(bar);
+  }
+
+  if (totalItens === 0) {
+    bar.classList.remove('visible');
+    return;
+  }
+
+  bar.innerHTML = `
+    <div class="cart-info">
+      <span class="cart-count">${totalItens}</span>
+      <span class="cart-total">${formatMoeda(calcularSubtotal())}</span>
+    </div>
+    <span class="cart-cta icon-inline-row">Ver carrinho ${Icon.chevronRight({size: 16})}</span>
+  `;
+  bar.classList.add('visible');
+}
+
+function abrirCarrinho() {
+  renderCarrinhoBody();
+  abrirSheet('sheetCarrinho', 'overlayCarrinho');
+}
+function fecharCarrinho() { fecharSheet('sheetCarrinho', 'overlayCarrinho'); }
+
+function renderCarrinhoBody() {
+  const body = document.getElementById('sheetCarrinhoBody');
+  if (carrinho.length === 0) {
+    body.innerHTML = `<div class="empty-state"><div class="emoji">${Icon.cart({size: 48})}</div><h3>Carrinho vazio</h3><p>Adicione itens do cardápio para começar.</p></div>`;
+    return;
+  }
+
+  const subtotal = calcularSubtotal();
+  body.innerHTML = `
+    <div style="margin-bottom: 8px;">
+      ${carrinho.map(item => `
+        <div class="cart-item-mini">
+          <img src="${item.foto}">
+          <div class="ci-info">
+            <h4>${item.nome}</h4>
+            <div class="ci-price">${formatMoeda(item.preco)} ${item.obs ? `· <em>${item.obs}</em>` : ''}</div>
+          </div>
+          <div class="stepper">
+            <button onclick="alterarQtdCarrinho('${item.id}', -1)">−</button>
+            <span>${item.qtd}</span>
+            <button class="primary" onclick="alterarQtdCarrinho('${item.id}', 1)">+</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="summary-row total">
+      <span>Subtotal</span>
+      <span>${formatMoeda(subtotal)}</span>
+    </div>
+    ${subtotal < loja.pedidoMinimo ? `
+      <p style="text-align:center;font-size:12.5px;color:#D70015;margin:10px 0 0;">
+        Pedido mínimo de ${formatMoeda(loja.pedidoMinimo)} — faltam ${formatMoeda(loja.pedidoMinimo - subtotal)}
+      </p>
+    ` : ''}
+    <button class="btn btn-primary btn-block" style="margin-top:18px;" ${subtotal < loja.pedidoMinimo ? 'disabled' : ''} onclick="irParaCheckout()">
+      Continuar para entrega
+    </button>
+  `;
+}
+
+function alterarQtdCarrinho(itemId, delta) {
+  const item = carrinho.find(i => i.id === itemId);
+  if (!item) return;
+  item.qtd += delta;
+  if (item.qtd <= 0) carrinho = carrinho.filter(i => i.id !== itemId);
+  DB.saveCarrinho(lojaId, carrinho);
+  renderCarrinhoBody();
+  renderCartBar();
+  renderMenu();
+}
+
+/* =========================================================
+   Checkout: tipo de entrega, endereço, pagamento
+   ========================================================= */
+let checkoutState = { tipoEntrega: 'entrega', enderecoId: null, formaPagamento: null, cliente: { nome: '', celular: '' } };
+
+function irParaCheckout() {
+  fecharCarrinho();
+  const enderecos = DB.getEnderecos();
+  checkoutState.enderecoId = enderecos.length ? enderecos[0].id : null;
+  // pré-preencher dados salvos do cliente
+  const clienteSalvo = DB.getClienteInfo();
+  checkoutState.cliente = { nome: clienteSalvo.nome || '', celular: clienteSalvo.celular || '' };
+  setTimeout(() => {
+    renderCheckoutBody();
+    abrirSheet('sheetCheckout', 'overlayCheckout');
+  }, 200);
+}
+
+function formasPagamentoPara(tipoEntrega) {
+  const sufixo = tipoEntrega === 'entrega' ? '(na entrega)' : '(no balcão)';
+  return [
+    { id: 'pix', label: 'Pix', icon: Icon.pix({size: 20}) },
+    { id: 'credito', label: `Cartão de crédito ${sufixo}`, icon: Icon.card({size: 20}) },
+    { id: 'debito', label: `Cartão de débito ${sufixo}`, icon: Icon.card({size: 20}) },
+    { id: 'dinheiro', label: 'Dinheiro', icon: Icon.cash({size: 20}) },
+  ];
+}
+
+function renderCheckoutBody() {
+  const subtotal = calcularSubtotal();
+  const enderecos = DB.getEnderecos();
+  const taxa = checkoutState.tipoEntrega === 'entrega' ? loja.taxaEntrega : 0;
+  const total = subtotal + taxa;
+  const formasPagamento = formasPagamentoPara(checkoutState.tipoEntrega);
+
+  const body = document.getElementById('sheetCheckoutBody');
+  body.innerHTML = `
+    <div class="field">
+      <label>Seu nome *</label>
+      <input id="ck_nome" type="text" placeholder="Nome completo"
+        value="${checkoutState.cliente.nome}"
+        oninput="checkoutState.cliente.nome = this.value.trim(); atualizarBtnFinalizar()">
+    </div>
+    <div class="field">
+      <label>Celular *</label>
+      <input id="ck_cel" type="tel" placeholder="(00) 00000-0000"
+        value="${checkoutState.cliente.celular}"
+        oninput="mascaraCelular(this); checkoutState.cliente.celular = this.value; atualizarBtnFinalizar()">
+    </div>
+
+    <div class="field">
+      <label>Como você quer receber?</label>
+      <div class="seg-control">
+        <button class="${checkoutState.tipoEntrega === 'entrega' ? 'active' : ''} icon-inline-row" style="justify-content:center;" onclick="setTipoEntrega('entrega')">${Icon.bike({size: 16})} Entrega</button>
+        <button class="${checkoutState.tipoEntrega === 'retirada' ? 'active' : ''} icon-inline-row" style="justify-content:center;" onclick="setTipoEntrega('retirada')">${Icon.walk({size: 16})} Retirada</button>
+      </div>
+    </div>
+
+    ${checkoutState.tipoEntrega === 'entrega' ? `
+      <div class="field">
+        <label>Endereço de entrega</label>
+        ${enderecos.length === 0 ? `
+          <div class="empty-state" style="padding:24px 0;">
+            <p style="margin-bottom:14px;">Você ainda não tem endereços salvos.</p>
+            <button class="btn btn-glass" onclick="abrirNovoEnderecoDoCheckout()">+ Adicionar endereço</button>
+          </div>
+        ` : `
+          ${enderecos.map(e => `
+            <div class="addr-option ${checkoutState.enderecoId === e.id ? 'selected' : ''}" onclick="selecionarEndereco('${e.id}')">
+              <div class="radio"></div>
+              <div style="flex:1;">
+                <strong style="font-size:13.5px;">${e.label}</strong>
+                <p style="margin:2px 0 0;font-size:12.5px;color:var(--ink-soft);">${e.rua}, ${e.numero} — ${e.bairro}</p>
+              </div>
+            </div>
+          `).join('')}
+          <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="abrirNovoEnderecoDoCheckout()">+ Novo endereço</button>
+        `}
+      </div>
+    ` : `
+      <div class="glass-soft icon-inline-row" style="padding:14px 16px;border-radius:var(--r-md);margin-bottom:16px;font-size:13.5px;color:var(--ink-soft);align-items:flex-start;">
+        <span style="flex-shrink:0;margin-top:1px;">${Icon.pin({size: 16})}</span>
+        <span>Retirar em: <strong style="color:var(--ink);">${loja.nome}</strong> — combine o endereço exato pelo WhatsApp após confirmar.</span>
+      </div>
+    `}
+
+    <div class="field">
+      <label>Forma de pagamento</label>
+      ${formasPagamento.map(fp => `
+        <div class="pay-option ${checkoutState.formaPagamento === fp.id ? 'selected' : ''}" onclick="selecionarPagamento('${fp.id}')">
+          <div class="radio"></div>
+          <span class="icon">${fp.icon}</span>
+          <span style="font-size:14px;font-weight:500;">${fp.label}</span>
+        </div>
+      `).join('')}
+      <p style="font-size:12px;color:var(--ink-faint);margin:6px 0 0;">O pagamento é feito diretamente com o estabelecimento — este app não processa pagamentos.</p>
+    </div>
+
+    <div class="summary-row"><span>Subtotal</span><span>${formatMoeda(subtotal)}</span></div>
+    ${checkoutState.tipoEntrega === 'entrega' ? `<div class="summary-row"><span>Taxa de entrega</span><span>${formatMoeda(taxa)}</span></div>` : ''}
+    <div class="summary-row total"><span>Total</span><span>${formatMoeda(total)}</span></div>
+
+    <div style="margin-top:16px;display:flex;justify-content:center;">
+      <button class="btn-load" id="btnFinalizarPedido" ${podeFinalizarCheckout() ? '' : 'disabled'} onclick="finalizarPedido()">
+        <div class="btn-load-fill"></div>
+        <span class="btn-load-label" id="btnFinalizarLabel">Enviar pedido pelo WhatsApp</span>
+        <span class="btn-load-check">${Icon.check({size: 22})}</span>
+      </button>
+    </div>
+  `;
+}
+
+function podeFinalizarCheckout() {
+  const { cliente, formaPagamento, tipoEntrega, enderecoId } = checkoutState;
+  if (!cliente.nome || cliente.nome.trim().length < 2) return false;
+  if (!cliente.celular || cliente.celular.replace(/\D/g, '').length < 10) return false;
+  if (!formaPagamento) return false;
+  if (tipoEntrega === 'entrega' && !enderecoId) return false;
+  return true;
+}
+
+function mascaraCelular(input) {
+  let v = input.value.replace(/\D/g, '').slice(0, 11);
+  if (v.length === 0) { input.value = ''; return; }
+  if (v.length <= 2)       input.value = `(${v}`;
+  else if (v.length <= 6)  input.value = `(${v.slice(0,2)}) ${v.slice(2)}`;
+  else if (v.length <= 10) input.value = `(${v.slice(0,2)}) ${v.slice(2,6)}-${v.slice(6)}`;
+  else                     input.value = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+}
+
+function atualizarBtnFinalizar() {
+  const btn = document.getElementById('btnFinalizarPedido');
+  if (btn) btn.disabled = !podeFinalizarCheckout();
+}
+
+function setTipoEntrega(tipo) { checkoutState.tipoEntrega = tipo; renderCheckoutBody(); }
+function selecionarEndereco(id) { checkoutState.enderecoId = id; renderCheckoutBody(); }
+function selecionarPagamento(id) { checkoutState.formaPagamento = id; renderCheckoutBody(); }
+
+function abrirNovoEnderecoDoCheckout() {
+  abrirNovoEndereco(() => {
+    const enderecos = DB.getEnderecos();
+    checkoutState.enderecoId = enderecos[enderecos.length - 1]?.id || null;
+    renderCheckoutBody();
+    abrirSheet('sheetCheckout', 'overlayCheckout');
+  });
+}
+
+function fecharCheckout() { fecharSheet('sheetCheckout', 'overlayCheckout'); }
+
+function finalizarPedido() {
+  if (!podeFinalizarCheckout()) return;
+
+  const btn = document.getElementById('btnFinalizarPedido');
+  const label = document.getElementById('btnFinalizarLabel');
+  if (!btn || btn.classList.contains('is-loading') || btn.classList.contains('is-success')) return; // evita duplo clique
+
+  btn.disabled = true;
+  btn.classList.add('is-loading');
+  label.innerHTML = `<span class="btn-load-spinner"></span> Carregando...`;
+
+  // pequeno delay para o browser registrar width:0% antes de animar para 100%
+  requestAnimationFrame(() => {
+    btn.querySelector('.btn-load-fill').style.width = '100%';
+  });
+
+  setTimeout(() => {
+    btn.classList.remove('is-loading');
+    btn.classList.add('is-success');
+    // o processamento real do pedido só acontece depois do círculo verde aparecer
+    // espera a animação CSS completa: forma encolhe (0.52s) + check aparece (0.7s) + uma pequena pausa para o usuário ver o resultado
+    setTimeout(() => processarPedidoConfirmado(), 950);
+  }, 1200);
+}
+
+function processarPedidoConfirmado() {
+  const subtotal = calcularSubtotal();
+  const taxa = checkoutState.tipoEntrega === 'entrega' ? loja.taxaEntrega : 0;
+  const endereco = checkoutState.tipoEntrega === 'entrega'
+    ? DB.getEnderecos().find(e => e.id === checkoutState.enderecoId)
+    : null;
+  const formaLabel = formasPagamentoPara(checkoutState.tipoEntrega).find(f => f.id === checkoutState.formaPagamento).label;
+
+  // salvar dados do cliente para pré-preencher na próxima vez
+  DB.saveClienteInfo(checkoutState.cliente);
+
+  const pedido = {
+    id: DB.uid('ped'),
+    numero: numeroPedido(),
+    cliente: { ...checkoutState.cliente },
+    itens: carrinho.map(i => ({ nome: i.nome, qtd: i.qtd, preco: i.preco, obs: i.obs })),
+    subtotal, taxaEntrega: taxa, total: subtotal + taxa,
+    tipoEntrega: checkoutState.tipoEntrega,
+    endereco,
+    formaPagamento: formaLabel,
+    status: 'recebido',
+    statusHistorico: [{ status: 'recebido', em: Date.now() }],
+    criadoEm: Date.now(),
+  };
+
+  DB.savePedido(lojaId, pedido);
+  DB.clearCarrinho(lojaId);
+  carrinho = [];
+
+  const mensagem = gerarMensagemWhatsapp(loja, pedido);
+  abrirWhatsapp(loja.whatsapp || '5500000000000', mensagem);
+
+  pedidoAtivo = pedido;
+  renderCartBar();
+  toast('Pedido enviado! Acompanhe o status abaixo.', { icon: Icon.checkCircle({size: 16}) });
+
+  // fecha o checkout e, na sequência, abre direto a tela de status do pedido
+  fecharCheckout();
+  setTimeout(() => {
+    render();
+    abrirStatusPedido();
+  }, 280);
+}
+
+/* =========================================================
+   Endereços
+   ========================================================= */
+function abrirEnderecos() {
+  const enderecos = DB.getEnderecos();
+  document.getElementById('sheetEnderecoBody').innerHTML = `
+    <div id="listaEnderecosWrap">
+      ${enderecos.length === 0 ? `
+        <div class="empty-state" style="padding:20px 0 28px;">
+          <div class="emoji">${Icon.pin({size: 44})}</div>
+          <h3>Nenhum endereço salvo</h3>
+          <p>Adicione um endereço para facilitar seus próximos pedidos.</p>
+        </div>
+      ` : enderecos.map(e => `
+        <div class="addr-option selected" style="cursor:default;">
+          <div class="radio"></div>
+          <div style="flex:1;">
+            <strong style="font-size:13.5px;">${e.label}</strong>
+            <p style="margin:2px 0 0;font-size:12.5px;color:var(--ink-soft);">${e.rua}, ${e.numero} — ${e.bairro}, ${e.cidade}</p>
+          </div>
+          <button class="btn-icon btn-ghost" style="border:none;" onclick="removerEndereco('${e.id}')">${Icon.trash({size: 16})}</button>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="abrirNovoEndereco()">+ Adicionar novo endereço</button>
+  `;
+  document.getElementById('sheetEndereco').querySelector('h2').textContent = 'Meus endereços';
+  abrirSheet('sheetEndereco', 'overlayEndereco');
+}
+
+function removerEndereco(id) {
+  DB.deleteEndereco(id);
+  abrirEnderecos();
+}
+
+function abrirNovoEndereco(onSaved) {
+  document.getElementById('sheetEndereco').querySelector('h2').textContent = 'Novo endereço';
+  document.getElementById('sheetEnderecoBody').innerHTML = `
+    <div class="field"><label>Identificação</label><input id="endLabel" placeholder="Ex: Casa, Trabalho"></div>
+    <div class="field"><label>Rua</label><input id="endRua" placeholder="Nome da rua"></div>
+    <div class="flex gap-12">
+      <div class="field" style="flex:1;"><label>Número</label><input id="endNumero" placeholder="123"></div>
+      <div class="field" style="flex:2;"><label>Complemento</label><input id="endComplemento" placeholder="Apto, bloco..."></div>
+    </div>
+    <div class="field"><label>Bairro</label><input id="endBairro" placeholder="Bairro"></div>
+    <div class="field"><label>Cidade</label><input id="endCidade" placeholder="Cidade" value="${loja.cidade || ''}"></div>
+    <button class="btn btn-primary btn-block" onclick="salvarNovoEndereco()">Salvar endereço</button>
+  `;
+  window._onEnderecoSaved = onSaved;
+  abrirSheet('sheetEndereco', 'overlayEndereco');
+}
+
+function salvarNovoEndereco() {
+  const label = document.getElementById('endLabel').value.trim() || 'Endereço';
+  const rua = document.getElementById('endRua').value.trim();
+  const numero = document.getElementById('endNumero').value.trim();
+  const bairro = document.getElementById('endBairro').value.trim();
+  if (!rua || !numero || !bairro) {
+    toast('Preencha rua, número e bairro', { icon: Icon.warning({size: 16}) });
+    return;
+  }
+  DB.saveEndereco({
+    label,
+    rua, numero,
+    complemento: document.getElementById('endComplemento').value.trim(),
+    bairro,
+    cidade: document.getElementById('endCidade').value.trim(),
+  });
+  toast('Endereço salvo');
+  fecharSheet('sheetEndereco', 'overlayEndereco');
+  if (window._onEnderecoSaved) {
+    const cb = window._onEnderecoSaved;
+    window._onEnderecoSaved = null;
+    cb();
+  }
+}
+
+function fecharEndereco() { fecharSheet('sheetEndereco', 'overlayEndereco'); }
+
+/* =========================================================
+   Acompanhamento de pedido (status)
+   ========================================================= */
+const statusFlow = {
+  entrega: [
+    { id: 'recebido', label: 'Pedido recebido', desc: 'O estabelecimento recebeu seu pedido' },
+    { id: 'preparo', label: 'Em preparo', desc: 'Seu pedido está sendo preparado' },
+    { id: 'caminho', label: 'Saiu para entrega', desc: 'Está a caminho da sua casa' },
+    { id: 'concluido', label: 'Entregue', desc: 'Pedido concluído — bom apetite!' },
+  ],
+  retirada: [
+    { id: 'recebido', label: 'Pedido recebido', desc: 'O estabelecimento recebeu seu pedido' },
+    { id: 'preparo', label: 'Em preparo', desc: 'Seu pedido está sendo preparado' },
+    { id: 'pronto', label: 'Pronto para retirada', desc: 'Pode vir buscar quando quiser' },
+    { id: 'concluido', label: 'Retirado', desc: 'Pedido concluído — bom apetite!' },
+  ],
+};
+
+function renderFloatingOrderPill() {
+  let pill = document.getElementById('orderPill');
+  if (pill) pill.remove();
+  if (!pedidoAtivo) return;
+
+  // sempre busca a versão mais atual (o vendedor pode ter mudado o status)
+  const pedidos = DB.getPedidos(lojaId);
+  const atualizado = pedidos.find(p => p.id === pedidoAtivo.id);
+  if (atualizado) pedidoAtivo = atualizado;
+  if (pedidoAtivo.status === 'concluido') return;
+
+  const flow = statusFlow[pedidoAtivo.tipoEntrega];
+  const atual = flow.find(s => s.id === pedidoAtivo.status) || flow[0];
+
+  pill = document.createElement('div');
+  pill.id = 'orderPill';
+  pill.className = 'floating-order-pill glass-strong';
+  pill.style.borderRadius = 'var(--r-pill)';
+  pill.style.cursor = 'pointer';
+  pill.onclick = abrirStatusPedido;
+  pill.innerHTML = `
+    <span class="dot-pulse"></span>
+    <div style="flex:1;">
+      <strong style="font-size:13.5px;display:block;">${atual.label}</strong>
+      <span style="font-size:11.5px;color:var(--ink-soft);">Pedido ${pedidoAtivo.numero} · toque para acompanhar</span>
+    </div>
+    <span style="color:var(--ink-faint);display:flex;">${Icon.chevronRight({size: 17})}</span>
+  `;
+  document.body.appendChild(pill);
+}
+
+function abrirStatusPedido() {
+  const flow = statusFlow[pedidoAtivo.tipoEntrega];
+  const idxAtual = flow.findIndex(s => s.id === pedidoAtivo.status);
+
+  document.getElementById('sheetProdutoBody').innerHTML = `
+    <h2 style="margin:0 0 4px;font-size:19px;font-weight:750;">Pedido ${pedidoAtivo.numero}</h2>
+    <p style="margin:0 0 4px;color:var(--ink-soft);font-size:13.5px;">${formatMoeda(pedidoAtivo.total)} · ${pedidoAtivo.formaPagamento}</p>
+    <div class="status-track">
+      ${flow.map((s, i) => `
+        <div class="status-step ${i < idxAtual ? 'done' : i === idxAtual ? 'current' : ''}">
+          ${i < flow.length - 1 ? '<div class="line"></div>' : ''}
+          <div class="status-dot">${i < idxAtual ? Icon.check({size: 14}) : i === idxAtual ? '<svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="currentColor"/></svg>' : ''}</div>
+          <div class="stext">
+            <h4>${s.label}</h4>
+            <p>${s.desc}</p>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <p style="font-size:12px;color:var(--ink-faint);text-align:center;margin-top:8px;">
+      Esta simulação representa como o cliente acompanharia o status via notificações do WhatsApp na versão final.
+    </p>
+  `;
+  abrirSheet('sheetProduto', 'overlayProduto');
+}
+
+/* =========================================================
+   Helpers de sheet (abrir/fechar)
+   ========================================================= */
+function abrirSheet(sheetId, overlayId) {
+  document.getElementById(sheetId).classList.add('open');
+  document.getElementById(overlayId).classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function fecharSheet(sheetId, overlayId) {
+  document.getElementById(sheetId).classList.remove('open');
+  document.getElementById(overlayId).classList.remove('open');
+  document.body.style.overflow = '';
+}
+['Produto', 'Carrinho', 'Checkout', 'Endereco'].forEach(name => {
+  document.getElementById(`overlay${name}`).addEventListener('click', () => fecharSheet(`sheet${name}`, `overlay${name}`));
+});
+
+/* =========================================================
+   Init
+   ========================================================= */
+render();
+
+// Polling leve para simular atualização "em tempo real" do status do pedido
+// (na fase 2, isso será substituído por notificações push via WhatsApp Business API)
+setInterval(() => {
+  if (pedidoAtivo) renderFloatingOrderPill();
+}, 4000);
+</script>
+</body>
+</html>

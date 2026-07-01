@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Entrar — Painel do Vendedor</title>
+<link rel="stylesheet" href="css/glass.css">
+<style>
+  :root { --brand: #0A84FF; --brand-dark: #1A1A1A; --brand-rgb: 10,132,255; }
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .login-card {
+    width: 100%; max-width: 380px;
+    padding: 36px 28px;
+    border-radius: var(--r-xl);
+    text-align: center;
+  }
+  .login-icon {
+    width: 64px; height: 64px; border-radius: 20px;
+    background: linear-gradient(135deg, var(--brand), #1A1A1A);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    margin: 0 auto 18px;
+    box-shadow: 0 8px 22px rgba(10,132,255,0.35);
+  }
+  .login-card h1 { font-size: 21px; font-weight: 750; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .login-card p.sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 26px; }
+  .field { text-align: left; }
+  .demo-hint {
+    margin-top: 18px; padding: 12px 14px; border-radius: 14px;
+    background: rgba(10,132,255,0.08); font-size: 12px; color: var(--ink-soft);
+    text-align: left; line-height: 1.6;
+  }
+  .demo-hint strong { color: var(--ink); }
+  .back-link { display: block; margin-top: 18px; font-size: 13px; color: var(--ink-soft); }
+  .error-msg {
+    background: rgba(255,59,48,0.1); color: #D70015;
+    padding: 10px 14px; border-radius: 12px; font-size: 13px;
+    margin-bottom: 16px; display: none; text-align: left;
+  }
+</style>
+</head>
+<body>
+<div class="ambient-bg"></div>
+
+<div class="login-card glass-strong pop-in">
+  <div class="login-icon" data-icon="lock" data-icon-size="28"></div>
+  <h1>Painel do Vendedor</h1>
+  <p class="sub">Entre para gerenciar seu cardápio</p>
+
+  <div class="error-msg" id="errorMsg">Usuário ou senha incorretos.</div>
+
+  <form id="loginForm" onsubmit="return fazerLogin(event)">
+    <div class="field">
+      <label>Usuário</label>
+      <input type="text" id="usuario" autocomplete="username" placeholder="seu usuário">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="password" id="senha" autocomplete="current-password" placeholder="••••••">
+    </div>
+    <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+  </form>
+
+  <div class="demo-hint">
+    <strong>Demonstração:</strong> use usuário <strong>burger</strong> / senha <strong>1234</strong> (Burger House) ou usuário <strong>pizza</strong> / senha <strong>1234</strong> (Pizza Bella).
+  </div>
+
+  <a href="index.html" class="back-link icon-inline-row" style="justify-content:center;"><span data-icon="chevronLeft" data-icon-size="14"></span> Voltar para o início</a>
+</div>
+
+<script src="js/icons.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script>
+  DB.seedIfEmpty();
+
+  function fazerLogin(e) {
+    e.preventDefault();
+    const usuario = document.getElementById('usuario').value.trim();
+    const senha = document.getElementById('senha').value;
+    const loja = DB.autenticar(usuario, senha);
+
+    if (loja) {
+      DB.setSession(loja.id);
+      window.location.href = `admin.html?id=${loja.id}`;
+    } else {
+      document.getElementById('errorMsg').style.display = 'block';
+    }
+    return false;
+  }
+</script>
+</body>
+</html>
