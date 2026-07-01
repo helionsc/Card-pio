@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cardápio Digital — Protótipo</title>
+<link rel="stylesheet" href="css/glass.css">
+<style>
+  :root { --brand: #0A84FF; --brand-dark: #1A1A1A; --brand-rgb: 10,132,255; }
+  body { min-height: 100vh; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 0 20px 60px; }
+  .top { text-align: center; padding: 56px 0 28px; }
+  .top .kicker {
+    display: inline-block; padding: 6px 14px; border-radius: var(--r-pill);
+    background: rgba(10,132,255,0.1); color: var(--brand);
+    font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .top h1 {
+    font-size: 30px; font-weight: 750; letter-spacing: -0.02em; margin: 0 0 10px;
+    line-height: 1.15;
+  }
+  .top p { color: var(--ink-soft); font-size: 15px; margin: 0; line-height: 1.5; }
+
+  .store-list { display: flex; flex-direction: column; gap: 14px; margin-top: 28px; }
+  .store-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 18px; border-radius: var(--r-lg);
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    border: 1px solid rgba(255,255,255,0.55);
+    box-shadow: 0 4px 18px rgba(31,38,60,0.08);
+    transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-out);
+  }
+  .store-card:active { transform: scale(0.98); }
+  .store-logo {
+    width: 56px; height: 56px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  .store-logo svg { width: 26px; height: 26px; }
+  .store-info { flex: 1; min-width: 0; }
+  .store-info h3 { margin: 0 0 3px; font-size: 16px; font-weight: 650; }
+  .store-info p { margin: 0; font-size: 13px; color: var(--ink-soft); }
+  .store-arrow { color: var(--ink-faint); flex-shrink: 0; display: flex; }
+  .store-arrow svg { width: 18px; height: 18px; }
+
+  .vendor-icon { width: 20px; height: 20px; }
+  .footnote-icon { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; opacity: 0.6; }
+
+  .divider-label {
+    text-align: center; font-size: 12px; font-weight: 700;
+    color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em;
+    margin: 36px 0 16px;
+  }
+  .admin-row { display: flex; gap: 12px; }
+  .admin-row .btn { flex: 1; }
+
+  .footnote {
+    text-align: center; margin-top: 40px; font-size: 12.5px; color: var(--ink-faint); line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="ambient-bg"></div>
+
+<div class="wrap">
+  <div class="top fade-up">
+    <span class="kicker">Protótipo · Cardápio Digital</span>
+    <h1>Escolha uma loja<br>para visualizar</h1>
+    <p>Cada estabelecimento tem seu próprio link de cardápio e painel de gestão — assim como funcionaria em produção.</p>
+  </div>
+
+  <div class="store-list" id="storeList"></div>
+
+  <div class="divider-label">Área do vendedor</div>
+  <div class="glass-soft fade-up" style="border-radius: var(--r-lg); padding: 18px; text-align:center;">
+    <div id="vendorIconWrap" style="display:flex;justify-content:center;margin-bottom:10px;color:var(--ink-soft);"></div>
+    <p style="margin: 0 0 14px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.5;">
+      Acesse o painel administrativo para gerenciar produtos, categorias, horários e pedidos de uma loja.
+    </p>
+    <a href="admin-login.html" class="btn btn-primary btn-block">Entrar como vendedor</a>
+  </div>
+
+  <p class="footnote">Liquid Glass UI · Protótipo navegável<br>Integração com WhatsApp simulada nesta fase</p>
+</div>
+
+<script src="js/icons.js"></script>
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script>
+  DB.seedIfEmpty();
+
+  // Ícones estilo SF Symbols: traço fino, sem preenchimento, cantos arredondados.
+  const ICON_STROKE = 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
+
+  const icones = {
+    'burger-house': `<svg viewBox="0 0 24 24" ${ICON_STROKE}>
+      <path d="M4 10.5c0-3.59 3.58-6.5 8-6.5s8 2.91 8 6.5" />
+      <line x1="3" y1="10.5" x2="21" y2="10.5" />
+      <line x1="3" y1="13.5" x2="21" y2="13.5" />
+      <path d="M3 13.5c0 .5.2 1 .6 1.3.7.6 1.9.7 2.9.7h11c1 0 2.2-.1 2.9-.7.4-.3.6-.8.6-1.3" />
+      <path d="M3.5 17h17c0 1.66-1.34 3-3 3h-11c-1.66 0-3-1.34-3-3Z" />
+    </svg>`,
+    'pizza-bella': `<svg viewBox="0 0 24 24" ${ICON_STROKE}>
+      <path d="M3 5.5 12 21l9-15.5C17.5 3.5 6.5 3.5 3 5.5Z" />
+      <circle cx="11" cy="9.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="12" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="9.5" cy="13" r="0.9" fill="currentColor" stroke="none" />
+    </svg>`,
+  };
+
+  const iconeGenerico = `<svg viewBox="0 0 24 24" ${ICON_STROKE}>
+    <path d="M7 3v7c0 1.1-.9 2-2 2s-2-.9-2-2V3" />
+    <line x1="5" y1="3" x2="5" y2="21" />
+    <path d="M16 3c-1.66 0-3 2.69-3 6s1.34 6 3 6v6" />
+  </svg>`;
+
+  const chevronIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>`;
+  const storefrontIcon = `<svg class="vendor-icon" viewBox="0 0 24 24" ${ICON_STROKE}><path d="M3 9.5 4.5 4h15L21 9.5"/><path d="M3 9.5c0 1.4 1.1 2.5 2.5 2.5S8 10.9 8 9.5c0 1.4 1.1 2.5 2.5 2.5S13 10.9 13 9.5c0 1.4 1.1 2.5 2.5 2.5S18 10.9 18 9.5c0 1.4 1.1 2.5 2.5 2.5.4 0 .7-.1 1-.2"/><path d="M5 12v8h14v-8"/><path d="M9.5 20v-5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5v5"/></svg>`;
+
+  const list = document.getElementById('storeList');
+  DB.listLojaIds().forEach((id, i) => {
+    const loja = DB.getLoja(id);
+    const aberta = DB.isLojaAberta(loja);
+    const card = document.createElement('a');
+    card.href = `loja.html?id=${id}`;
+    card.className = 'store-card fade-up';
+    card.style.animationDelay = `${i * 0.08}s`;
+    card.innerHTML = `
+      <div class="store-logo" style="background: linear-gradient(135deg, ${loja.corPrimaria}, ${loja.corSecundaria});">
+        ${loja.logoUrl ? `<img src="${loja.logoUrl}" style="width:100%;height:100%;border-radius:16px;object-fit:cover;">` : (icones[id] || iconeGenerico)}
+      </div>
+      <div class="store-info">
+        <h3>${loja.nome}</h3>
+        <p>${loja.slogan}</p>
+      </div>
+      <span class="badge ${aberta ? 'badge-open' : 'badge-closed'}" style="margin-right:4px;">${aberta ? 'Aberto' : 'Fechado'}</span>
+      <span class="store-arrow">${chevronIcon}</span>
+    `;
+    list.appendChild(card);
+  });
+
+  document.getElementById('vendorIconWrap').innerHTML = storefrontIcon;
+</script>
+</body>
+</html>
