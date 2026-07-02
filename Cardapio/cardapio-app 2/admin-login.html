@@ -67,29 +67,39 @@
 
   <a href="index.html" class="back-link icon-inline-row" style="justify-content:center;"><span data-icon="chevronLeft" data-icon-size="14"></span> Voltar para o início</a>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script src="js/supabase.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
 <script src="js/icons.js"></script>
-
 <script src="js/db.js"></script>
-
 <script src="js/utils.js"></script>
 <script>
-  DB.seedIfEmpty();
-
-  function fazerLogin(e) {
+  async function fazerLogin(e) {
     e.preventDefault();
+    document.getElementById('errorMsg').style.display = 'none';
     const usuario = document.getElementById('usuario').value.trim();
     const senha = document.getElementById('senha').value;
-    const loja = DB.autenticar(usuario, senha);
 
-    if (loja) {
-      DB.setSession(loja.id);
-      window.location.href = `admin.html?id=${loja.id}`;
-    } else {
+    const btn = document.querySelector('#loginForm button[type=submit]');
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Entrando...';
+
+    try {
+      const loja = await DB.autenticar(usuario, senha);
+      if (loja) {
+        DB.setSession(loja.id);
+        window.location.href = `admin.html?id=${loja.id}`;
+      } else {
+        document.getElementById('errorMsg').style.display = 'block';
+      }
+    } catch (err) {
+      console.error(err);
+      document.getElementById('errorMsg').textContent = 'Erro ao conectar. Verifique sua internet e as credenciais do Supabase em js/config.js.';
       document.getElementById('errorMsg').style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
     }
     return false;
   }

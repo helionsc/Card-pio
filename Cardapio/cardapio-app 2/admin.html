@@ -289,30 +289,107 @@
   <div class="sheet-body" id="categoriaFormBody"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script src="js/supabase.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
 <script src="js/icons.js"></script>
-
 <script src="js/db.js"></script>
-
 <script src="js/utils.js"></script>
 <script>
-DB.seedIfEmpty();
 const lojaId = getQueryParam('id') || DB.getSession()?.lojaId;
-let loja = DB.getLoja(lojaId);
-
-if (!loja) {
-  window.location.href = 'admin-login.html';
-  throw new Error('redirecionando');
-}
-
-aplicarTemaLoja(loja);
+let loja = null;
 let telaAtual = 'dashboard';
 let categoriaFiltro = 'all';
+let pedidosCache = [];
 
-function persistir() { DB.saveLoja(loja); }
+function persistir() {
+  return DB.saveLoja(loja).catch(err => {
+    console.error(err);
+    toast('Não foi possível salvar. Verifique sua internet.', { icon: Icon.warning({size: 16}) });
+  });
+}
+
+async function refreshPedidos() {
+  pedidosCache = await DB.getPedidos(lojaId);
+}
+
+// Toca um bipe curto de notificação (sem depender de arquivo de áudio externo)
+function tocarAlertaPedido() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.18].forEach((delay, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = i === 0 ? 880 : 1046;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.28);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.3);
+    });
+  } catch (e) { /* navegador pode bloquear áudio antes de interação do usuário */ }
+}
+
+function notificarNovoPedido(pedido) {
+  tocarAlertaPedido();
+  toast(`Novo pedido ${pedido.numero || ''}! ${formatMoeda(pedido.total || 0)}`, { icon: Icon.receipt({size: 16}), duration: 4000 });
+  if (window.Notification && Notification.permission === 'granted') {
+    new Notification('Novo pedido recebido', { body: `${pedido.numero || ''} · ${formatMoeda(pedido.total || 0)}` });
+  }
+}
+
+function iniciarRealtimePedidos() {
+  DB.subscribePedidos(lojaId, async (payload) => {
+    await refreshPedidos();
+    if (payload.eventType === 'INSERT') {
+      const pedido = { ...(payload.new.dados || {}), id: payload.new.id, status: payload.new.status };
+      notificarNovoPedido(pedido);
+    }
+    if (telaAtual === 'pedidos') renderKanban();
+    atualizarBadgePedidos();
+  });
+}
+
+function atualizarBadgePedidos() {
+  const pendentes = pedidosCache.filter(p => p.status === 'recebido').length;
+  const navPedidos = document.querySelector('.nav-item[onclick*="pedidos"]');
+  if (navPedidos) {
+    const dot = navPedidos.querySelector('.notif-dot');
+    if (pendentes > 0 && !dot) navPedidos.insertAdjacentHTML('beforeend', '<span class="notif-dot"></span>');
+    else if (pendentes === 0 && dot) dot.remove();
+  }
+}
+
+async function iniciarAdmin() {
+  if (!lojaId) { window.location.href = 'admin-login.html'; return; }
+
+  loja = await DB.getLoja(lojaId);
+  if (!loja) {
+    window.location.href = 'admin-login.html';
+    return;
+  }
+
+  aplicarTemaLoja(loja);
+  await refreshPedidos();
+
+  renderHeader();
+  renderNav();
+  renderTela();
+
+  if (window.Notification && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  iniciarRealtimePedidos();
+
+  // Poll leve de segurança (caso a conexão Realtime caia)
+  setInterval(async () => {
+    await refreshPedidos();
+    if (telaAtual === 'pedidos') renderKanban();
+    atualizarBadgePedidos();
+  }, 20000);
+}
 
 /* =========================================================
    Header + Bottom nav
@@ -353,7 +430,6 @@ function renderNav() {
 }
 
 function irPara(tela) {
-  if (telaAtual === 'pedidos' && tela !== 'pedidos') pararPollingPedidos();
   telaAtual = tela;
   renderNav();
   renderTela();
@@ -416,7 +492,7 @@ function renderFab() {
    ========================================================= */
 function telaDashboard() {
   const aberta = DB.isLojaAberta(loja);
-  const pedidos = DB.getPedidos(lojaId);
+  const pedidos = pedidosCache;
   const hoje = new Date().toDateString();
   const pedidosHoje = pedidos.filter(p => new Date(p.criadoEm).toDateString() === hoje);
   const faturamentoHoje = pedidosHoje.reduce((s, p) => s + p.total, 0);
@@ -760,8 +836,6 @@ function setHorario(dia, campo, valor) {
 /* =========================================================
    PEDIDOS — Kanban
    ========================================================= */
-let pedidosPollingInterval = null;
-
 const COLUNAS = [
   {
     id: 'recebido',
@@ -866,7 +940,15 @@ function acoesCard(p) {
 }
 
 function moverPedido(pedidoId, novoStatus) {
-  DB.updatePedidoStatus(lojaId, pedidoId, novoStatus);
+  // Atualização otimista: já reflete na tela antes da resposta do servidor
+  const local = pedidosCache.find(p => p.id === pedidoId);
+  if (local) local.status = novoStatus;
+
+  DB.updatePedidoStatus(lojaId, pedidoId, novoStatus).catch(err => {
+    console.error(err);
+    toast('Não foi possível salvar o status. Tente novamente.', { icon: Icon.warning({size: 16}) });
+    refreshPedidos().then(renderKanban);
+  });
 
   // animação de saída do card
   const card = document.getElementById(`card-${pedidoId}`);
@@ -894,7 +976,7 @@ function renderKanban() {
   const wrap = document.getElementById('kanbanWrap');
   if (!wrap) return;
 
-  const pedidos = DB.getPedidos(lojaId);
+  const pedidos = pedidosCache;
 
   wrap.innerHTML = COLUNAS.map(col => {
     const cards = pedidos.filter(p => col.statuses.includes(p.status));
@@ -918,26 +1000,14 @@ function renderKanban() {
     `;
   }).join('');
 
-  // Atualizar badge no nav
-  const pendentes = pedidos.filter(p => p.status === 'recebido').length;
-  const navPedidos = document.querySelector('.nav-item[onclick*="pedidos"]');
-  if (navPedidos) {
-    const dot = navPedidos.querySelector('.notif-dot');
-    if (pendentes > 0 && !dot) {
-      navPedidos.insertAdjacentHTML('beforeend', '<span class="notif-dot"></span>');
-    } else if (pendentes === 0 && dot) {
-      dot.remove();
-    }
-  }
+  atualizarBadgePedidos();
 }
 
 function telaPedidos() {
-  // Inicia polling ao entrar na tela
-  iniciarPollingPedidos();
   return `
     <div style="margin: -4px 0 10px; display:flex; align-items:center; justify-content:space-between;">
-      <p style="margin:0;font-size:13px;color:var(--ink-soft);">Atualizando automaticamente</p>
-      <button class="btn btn-glass btn-sm" onclick="renderKanban()">${Icon.check({size: 14})} Atualizar</button>
+      <p style="margin:0;font-size:13px;color:var(--ink-soft);">Atualizando em tempo real</p>
+      <button class="btn btn-glass btn-sm" onclick="refreshPedidos().then(renderKanban)">${Icon.check({size: 14})} Atualizar</button>
     </div>
     <div class="kanban-wrap" id="kanbanWrap"></div>
   `;
@@ -947,23 +1017,15 @@ posRenderHooks.pedidos = function() {
   renderKanban();
 };
 
-function iniciarPollingPedidos() {
-  pararPollingPedidos();
-  pedidosPollingInterval = setInterval(() => {
-    if (telaAtual === 'pedidos') renderKanban();
-    else pararPollingPedidos();
-  }, 4000);
-}
-
-function pararPollingPedidos() {
-  if (pedidosPollingInterval) {
-    clearInterval(pedidosPollingInterval);
-    pedidosPollingInterval = null;
+async function atualizarStatusPedido(pedidoId, novoStatus) {
+  try {
+    await DB.updatePedidoStatus(lojaId, pedidoId, novoStatus);
+  } catch (err) {
+    console.error(err);
+    toast('Não foi possível atualizar o status', { icon: Icon.warning({size: 16}) });
+    return;
   }
-}
-
-function atualizarStatusPedido(pedidoId, novoStatus) {
-  DB.updatePedidoStatus(lojaId, pedidoId, novoStatus);
+  await refreshPedidos();
   toast('Status atualizado');
   renderTela();
 }
@@ -1084,22 +1146,7 @@ function fecharSheetAdmin(sheetId, overlayId) {
 /* =========================================================
    Init
    ========================================================= */
-renderHeader();
-renderNav();
-renderTela();
-
-// Polling de badge no nav (indica pedidos novos em qualquer tela)
-setInterval(() => {
-  if (telaAtual !== 'pedidos') {
-    const pendentes = DB.getPedidos(lojaId).filter(p => p.status === 'recebido').length;
-    const navPedidos = document.querySelector('.nav-item[onclick*="pedidos"]');
-    if (navPedidos) {
-      const dot = navPedidos.querySelector('.notif-dot');
-      if (pendentes > 0 && !dot) navPedidos.insertAdjacentHTML('beforeend', '<span class="notif-dot"></span>');
-      else if (pendentes === 0 && dot) dot.remove();
-    }
-  }
-}, 5000);
+iniciarAdmin();
 </script>
 </body>
 </html>

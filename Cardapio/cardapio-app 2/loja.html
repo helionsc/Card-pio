@@ -305,42 +305,58 @@
   <div class="sheet-body" id="sheetEnderecoBody"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script src="js/supabase.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
 <script src="js/icons.js"></script>
-
 <script src="js/db.js"></script>
-
 <script src="js/utils.js"></script>
 <script>
 /* =========================================================
    Estado da aplicação
    ========================================================= */
-const lojaId = getQueryParam('id') || DB.listLojaIds()[0];
-DB.seedIfEmpty();
-let loja = DB.getLoja(lojaId);
-let carrinho = DB.getCarrinho(lojaId);
-let categoriaAtiva = null;
-let pedidoAtivo = null; // pedido em acompanhamento
-(function recuperarPedidoAtivo() {
-  const pedidos = DB.getPedidos(lojaId);
+const app = document.getElementById('app');
+app.innerHTML = `<div class="empty-state"><p>Carregando cardápio…</p></div>`;
+
+let lojaId, loja, carrinho, categoriaAtiva = null, pedidoAtivo = null;
+
+async function iniciarApp() {
+  lojaId = getQueryParam('id');
+  if (!lojaId) {
+    const ids = await DB.listLojaIds();
+    lojaId = ids[0];
+  }
+  loja = await DB.getLoja(lojaId);
+
+  if (!loja) {
+    app.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">${Icon.search404({size: 48})}</div>
+        <h3>Loja não encontrada</h3>
+        <p>Verifique o link e tente novamente, ou confira se rodou o supabase-schema.sql.</p>
+      </div>`;
+    return;
+  }
+
+  carrinho = DB.getCarrinho(lojaId);
+
+  const pedidos = await DB.getPedidos(lojaId);
   const aberto = pedidos.find(p => p.status !== 'concluido');
   if (aberto) pedidoAtivo = aberto;
-})();
 
-if (!loja) {
-  document.getElementById('app').innerHTML = `
-    <div class="empty-state">
-      <div class="emoji">${Icon.search404({size: 48})}</div>
-      <h3>Loja não encontrada</h3>
-      <p>Verifique o link e tente novamente.</p>
-    </div>`;
-  throw new Error('Loja não encontrada');
+  aplicarTemaLoja(loja);
+  render();
+  renderFloatingOrderPill();
+
+  // Acompanha o status do pedido em tempo real via Supabase Realtime
+  DB.subscribePedidos(lojaId, (payload) => {
+    if (!pedidoAtivo) return;
+    const novo = payload.new;
+    if (novo && novo.id === pedidoAtivo.id) {
+      pedidoAtivo = { ...(novo.dados || {}), id: novo.id, status: novo.status };
+      renderFloatingOrderPill();
+    }
+  });
 }
-
-aplicarTemaLoja(loja);
 
 /* =========================================================
    Render principal
@@ -819,16 +835,13 @@ function finalizarPedido() {
   }, 1200);
 }
 
-function processarPedidoConfirmado() {
+async function processarPedidoConfirmado() {
   const subtotal = calcularSubtotal();
   const taxa = checkoutState.tipoEntrega === 'entrega' ? loja.taxaEntrega : 0;
   const endereco = checkoutState.tipoEntrega === 'entrega'
     ? DB.getEnderecos().find(e => e.id === checkoutState.enderecoId)
     : null;
   const formaLabel = formasPagamentoPara(checkoutState.tipoEntrega).find(f => f.id === checkoutState.formaPagamento).label;
-
-  // salvar dados do cliente para pré-preencher na próxima vez
-  DB.saveClienteInfo(checkoutState.cliente);
 
   const pedido = {
     id: DB.uid('ped'),
@@ -844,7 +857,16 @@ function processarPedidoConfirmado() {
     criadoEm: Date.now(),
   };
 
-  DB.savePedido(lojaId, pedido);
+  try {
+    await DB.savePedido(lojaId, pedido);
+  } catch (err) {
+    console.error(err);
+    toast('Não foi possível enviar o pedido. Verifique sua internet e tente novamente.', { icon: Icon.warning({size: 16}) });
+    return;
+  }
+
+  // salvar dados do cliente para pré-preencher na próxima vez (só localmente)
+  DB.saveClienteInfo(checkoutState.cliente);
   DB.clearCarrinho(lojaId);
   carrinho = [];
 
@@ -964,11 +986,8 @@ function renderFloatingOrderPill() {
   let pill = document.getElementById('orderPill');
   if (pill) pill.remove();
   if (!pedidoAtivo) return;
-
-  // sempre busca a versão mais atual (o vendedor pode ter mudado o status)
-  const pedidos = DB.getPedidos(lojaId);
-  const atualizado = pedidos.find(p => p.id === pedidoAtivo.id);
-  if (atualizado) pedidoAtivo = atualizado;
+  // pedidoAtivo é mantido atualizado via assinatura Realtime do Supabase
+  // (ver DB.subscribePedidos em iniciarApp)
   if (pedidoAtivo.status === 'concluido') return;
 
   const flow = statusFlow[pedidoAtivo.tipoEntrega];
@@ -1037,13 +1056,7 @@ function fecharSheet(sheetId, overlayId) {
 /* =========================================================
    Init
    ========================================================= */
-render();
-
-// Polling leve para simular atualização "em tempo real" do status do pedido
-// (na fase 2, isso será substituído por notificações push via WhatsApp Business API)
-setInterval(() => {
-  if (pedidoAtivo) renderFloatingOrderPill();
-}, 4000);
+iniciarApp();
 </script>
 </body>
 </html>

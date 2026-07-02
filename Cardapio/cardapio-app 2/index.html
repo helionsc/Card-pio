@@ -86,18 +86,12 @@
   <p class="footnote">Liquid Glass UI · Protótipo navegável<br>Integração com WhatsApp simulada nesta fase</p>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script src="js/supabase.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
 <script src="js/icons.js"></script>
-
 <script src="js/db.js"></script>
-
 <script src="js/utils.js"></script>
 <script>
-  DB.seedIfEmpty();
-
   // Ícones estilo SF Symbols: traço fino, sem preenchimento, cantos arredondados.
   const ICON_STROKE = 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
 
@@ -127,8 +121,19 @@
   const storefrontIcon = `<svg class="vendor-icon" viewBox="0 0 24 24" ${ICON_STROKE}><path d="M3 9.5 4.5 4h15L21 9.5"/><path d="M3 9.5c0 1.4 1.1 2.5 2.5 2.5S8 10.9 8 9.5c0 1.4 1.1 2.5 2.5 2.5S13 10.9 13 9.5c0 1.4 1.1 2.5 2.5 2.5S18 10.9 18 9.5c0 1.4 1.1 2.5 2.5 2.5.4 0 .7-.1 1-.2"/><path d="M5 12v8h14v-8"/><path d="M9.5 20v-5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5v5"/></svg>`;
 
   const list = document.getElementById('storeList');
-  DB.listLojaIds().forEach((id, i) => {
-    const loja = DB.getLoja(id);
+  list.innerHTML = `<div style="text-align:center;padding:20px 0;color:var(--ink-faint);font-size:13.5px;">Carregando lojas…</div>`;
+
+  (async () => {
+    const ids = await DB.listLojaIds();
+    if (!ids.length) {
+      list.innerHTML = `<div class="empty-state"><p>Nenhuma loja cadastrada ainda. Rode o supabase-schema.sql no seu projeto Supabase para criar as lojas de demonstração.</p></div>`;
+      return;
+    }
+    const lojas = await Promise.all(ids.map(id => DB.getLoja(id)));
+    list.innerHTML = '';
+    lojas.forEach((loja, i) => {
+    if (!loja) return;
+    const id = loja.id;
     const aberta = DB.isLojaAberta(loja);
     const card = document.createElement('a');
     card.href = `loja.html?id=${id}`;
@@ -146,7 +151,8 @@
       <span class="store-arrow">${chevronIcon}</span>
     `;
     list.appendChild(card);
-  });
+    });
+  })();
 
   document.getElementById('vendorIconWrap').innerHTML = storefrontIcon;
 </script>

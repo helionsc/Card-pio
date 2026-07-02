@@ -1,17 +1,20 @@
 /* =========================================================
-   db.js — Camada de dados (localStorage)
-   Estrutura pensada para migrar facilmente para um backend real:
-   cada função aqui pode futuramente virar uma chamada fetch().
+   db.js — Camada de dados
+   - Lojas e pedidos: Supabase (compartilhado entre dispositivos)
+   - Carrinho, endereços, dados do cliente e sessão do admin:
+     continuam no localStorage do navegador (são só locais mesmo,
+     não precisam sincronizar entre dispositivos)
    ========================================================= */
 
 const DB = (() => {
 
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   const KEYS = {
-    loja: (id) => `loja_${id}`,
-    pedidos: (id) => `pedidos_${id}`,
     enderecos: () => `cliente_enderecos`,
     carrinho: (id) => `carrinho_${id}`,
     session: () => `admin_session`,
+    clienteInfo: () => `cliente_info`,
   };
 
   function read(key, fallback) {
@@ -32,50 +35,60 @@ const DB = (() => {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  /* ---------- LOJAS ---------- */
+  /* ---------- LOJAS (Supabase) ---------- */
 
-  function getLoja(lojaId) {
-    return read(KEYS.loja(lojaId), null);
+  // Reconstrói o objeto "loja" no mesmo formato que o app espera
+  // (usuario/senha na raiz + tudo que está em "dados" também na raiz).
+  function rowParaLoja(row) {
+    if (!row) return null;
+    return { id: row.id, usuario: row.usuario, senha: row.senha, ...(row.dados || {}) };
   }
 
-  function saveLoja(loja) {
-    write(KEYS.loja(loja.id), loja);
+  function lojaParaRow(loja) {
+    const { id, usuario, senha, ...dados } = loja;
+    return { id, usuario, senha, dados, updated_at: new Date().toISOString() };
+  }
+
+  async function listLojaIds() {
+    const { data, error } = await supabase.from('lojas').select('id');
+    if (error) { console.error('listLojaIds', error); return []; }
+    return (data || []).map(r => r.id);
+  }
+
+  async function getLoja(lojaId) {
+    if (!lojaId) return null;
+    const { data, error } = await supabase.from('lojas').select('*').eq('id', lojaId).maybeSingle();
+    if (error) { console.error('getLoja', error); return null; }
+    return rowParaLoja(data);
+  }
+
+  async function saveLoja(loja) {
+    const row = lojaParaRow(loja);
+    const { error } = await supabase.from('lojas').upsert(row);
+    if (error) { console.error('saveLoja', error); throw error; }
     return loja;
   }
 
-  function listLojaIds() {
-    const ids = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k.startsWith('loja_')) ids.push(k.replace('loja_', ''));
-    }
-    return ids;
+  async function autenticar(usuario, senha) {
+    if (!usuario || !senha) return null;
+    const { data, error } = await supabase
+      .from('lojas')
+      .select('*')
+      .eq('usuario', usuario)
+      .eq('senha', senha)
+      .maybeSingle();
+    if (error) { console.error('autenticar', error); return null; }
+    return rowParaLoja(data);
   }
 
-  // Busca em todas as lojas qual tem esse usuário/senha — assim o login não
-  // precisa pedir "qual loja", o usuário já identifica isso.
-  // NOTA para migração a backend: nesse protótipo o nome de usuário é definido
-  // na criação da loja e não pode ser duplicado entre lojas; ao migrar para um
-  // banco real, validar unicidade de "usuario" na tabela de lojas/contas.
-  function autenticar(usuario, senha) {
-    const ids = listLojaIds();
-    for (const id of ids) {
-      const loja = getLoja(id);
-      if (loja && loja.usuario === usuario && loja.senha === senha) {
-        return loja;
-      }
-    }
-    return null;
-  }
-
-  /* ---------- STATUS DE FUNCIONAMENTO ---------- */
+  /* ---------- STATUS DE FUNCIONAMENTO (puro, sem rede) ---------- */
 
   function isLojaAberta(loja) {
     if (!loja) return false;
     if (loja.forcarFechado) return false;
 
     const now = new Date();
-    const diaSemana = now.getDay(); // 0=dom..6=sab
+    const diaSemana = now.getDay();
     const horario = loja.horarios?.[diaSemana];
     if (!horario || !horario.ativo) return false;
 
@@ -86,7 +99,6 @@ const DB = (() => {
     const minutosAbre = hAberH * 60 + hAberM;
     let minutosFecha = hFechH * 60 + hFechM;
 
-    // suporta fechamento depois da meia-noite (ex: abre 18:00 fecha 02:00)
     if (minutosFecha <= minutosAbre) {
       minutosFecha += 24 * 60;
       if (minutosAgora < minutosAbre) {
@@ -123,32 +135,72 @@ const DB = (() => {
 
   const NOMES_DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 
-  /* ---------- PEDIDOS ---------- */
+  /* ---------- PEDIDOS (Supabase) ---------- */
 
-  function getPedidos(lojaId) {
-    return read(KEYS.pedidos(lojaId), []);
+  function rowParaPedido(row) {
+    if (!row) return null;
+    return { ...(row.dados || {}), id: row.id, status: row.status };
   }
 
-  function savePedido(lojaId, pedido) {
-    const pedidos = getPedidos(lojaId);
-    pedidos.unshift(pedido);
-    write(KEYS.pedidos(lojaId), pedidos);
+  function pedidoParaRow(lojaId, pedido) {
+    return {
+      id: pedido.id,
+      loja_id: lojaId,
+      numero: pedido.numero,
+      status: pedido.status,
+      criado_em: new Date(pedido.criadoEm || Date.now()).toISOString(),
+      dados: pedido,
+    };
+  }
+
+  async function getPedidos(lojaId) {
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('loja_id', lojaId)
+      .order('criado_em', { ascending: false });
+    if (error) { console.error('getPedidos', error); return []; }
+    return (data || []).map(rowParaPedido);
+  }
+
+  async function savePedido(lojaId, pedido) {
+    const row = pedidoParaRow(lojaId, pedido);
+    const { error } = await supabase.from('pedidos').insert(row);
+    if (error) { console.error('savePedido', error); throw error; }
     return pedido;
   }
 
-  function updatePedidoStatus(lojaId, pedidoId, novoStatus) {
-    const pedidos = getPedidos(lojaId);
-    const p = pedidos.find(p => p.id === pedidoId);
-    if (p) {
-      p.status = novoStatus;
-      p.statusHistorico = p.statusHistorico || [];
-      p.statusHistorico.push({ status: novoStatus, em: Date.now() });
-      write(KEYS.pedidos(lojaId), pedidos);
-    }
-    return p;
+  async function updatePedidoStatus(lojaId, pedidoId, novoStatus) {
+    const { data: existing, error: e1 } = await supabase
+      .from('pedidos').select('dados').eq('id', pedidoId).maybeSingle();
+    if (e1 || !existing) { console.error('updatePedidoStatus (leitura)', e1); return null; }
+
+    const dados = existing.dados || {};
+    dados.status = novoStatus;
+    dados.statusHistorico = dados.statusHistorico || [];
+    dados.statusHistorico.push({ status: novoStatus, em: Date.now() });
+
+    const { error } = await supabase
+      .from('pedidos')
+      .update({ status: novoStatus, dados })
+      .eq('id', pedidoId);
+    if (error) { console.error('updatePedidoStatus', error); throw error; }
+    return dados;
   }
 
-  /* ---------- ENDEREÇOS DO CLIENTE ---------- */
+  // Assina atualizações em tempo real dos pedidos de uma loja.
+  // onChange recebe (payload) do Supabase Realtime a cada INSERT/UPDATE.
+  function subscribePedidos(lojaId, onChange) {
+    const channel = supabase
+      .channel(`pedidos-${lojaId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${lojaId}`,
+      }, (payload) => onChange(payload))
+      .subscribe();
+    return channel;
+  }
+
+  /* ---------- ENDEREÇOS DO CLIENTE (localStorage) ---------- */
 
   function getEnderecos() {
     return read(KEYS.enderecos(), []);
@@ -173,14 +225,14 @@ const DB = (() => {
     write(KEYS.enderecos(), lista);
   }
 
-  /* ---------- DADOS DO CLIENTE ---------- */
+  /* ---------- DADOS DO CLIENTE (localStorage) ---------- */
 
   function getClienteInfo() {
-    return read('cliente_info', { nome: '', celular: '' });
+    return read(KEYS.clienteInfo(), { nome: '', celular: '' });
   }
 
   function saveClienteInfo(info) {
-    write('cliente_info', info);
+    write(KEYS.clienteInfo(), info);
     return info;
   }
 
@@ -196,7 +248,7 @@ const DB = (() => {
     write(KEYS.carrinho(lojaId), []);
   }
 
-  /* ---------- SESSÃO ADMIN ---------- */
+  /* ---------- SESSÃO ADMIN (localStorage) ---------- */
 
   function getSession() {
     return read(KEYS.session(), null);
@@ -210,105 +262,14 @@ const DB = (() => {
     localStorage.removeItem(KEYS.session());
   }
 
-  /* ---------- SEED: dados de demonstração ---------- */
-
-  function horarioPadrao() {
-    return {
-      0: { ativo: true, abre: '18:00', fecha: '23:30' }, // dom
-      1: { ativo: false, abre: '18:00', fecha: '23:30' }, // seg (fechado)
-      2: { ativo: true, abre: '18:00', fecha: '23:30' },
-      3: { ativo: true, abre: '18:00', fecha: '23:30' },
-      4: { ativo: true, abre: '18:00', fecha: '23:30' },
-      5: { ativo: true, abre: '18:00', fecha: '23:59' },
-      6: { ativo: true, abre: '18:00', fecha: '23:59' },
-    };
-  }
-
-  function seedIfEmpty() {
-    if (!getLoja('burger-house')) {
-      saveLoja({
-        id: 'burger-house',
-        nome: 'Burger House',
-        slogan: 'Smash burgers artesanais',
-        logoUrl: '',
-        corPrimaria: '#FF6B35',
-        corSecundaria: '#1A1A1A',
-        usuario: 'burger',
-        senha: '1234',
-        tempoMedioMin: 35,
-        tempoMedioMax: 50,
-        taxaEntrega: 6.0,
-        pedidoMinimo: 20,
-        horarios: horarioPadrao(),
-        forcarFechado: false,
-        categorias: [
-          { id: 'cat_destaques', nome: 'Destaques', ordem: 0 },
-          { id: 'cat_burgers', nome: 'Hambúrgueres', ordem: 1 },
-          { id: 'cat_acompanhamentos', nome: 'Acompanhamentos', ordem: 2 },
-          { id: 'cat_bebidas', nome: 'Bebidas', ordem: 3 },
-          { id: 'cat_sobremesas', nome: 'Sobremesas', ordem: 4 },
-        ],
-        produtos: [
-          { id: uid('p'), nome: 'Smash Clássico', descricao: 'Pão brioche, blend 150g smashed, queijo cheddar, picles e maionese da casa.', preco: 28.9, foto: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80', categoriaId: 'cat_destaques', disponivel: true, destaque: true },
-          { id: uid('p'), nome: 'Bacon Cheddar Duplo', descricao: 'Dois blends de 100g, queijo cheddar duplo, bacon crocante e cebola caramelizada.', preco: 34.9, foto: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=600&q=80', categoriaId: 'cat_burgers', disponivel: true, destaque: true },
-          { id: uid('p'), nome: 'Smash Clássico', descricao: 'Pão brioche, blend 150g smashed, queijo cheddar, picles e maionese da casa.', preco: 28.9, foto: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80', categoriaId: 'cat_burgers', disponivel: true },
-          { id: uid('p'), nome: 'Veggie Grelhado', descricao: 'Hambúrguer de grão-de-bico e quinoa, rúcula, tomate seco e maionese de alho.', preco: 30.9, foto: 'https://images.unsplash.com/photo-1525059696034-4967a729002e?w=600&q=80', categoriaId: 'cat_burgers', disponivel: true },
-          { id: uid('p'), nome: 'BBQ Onion', descricao: 'Blend 150g, queijo prato, onion rings crocantes e barbecue da casa.', preco: 32.9, foto: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=600&q=80', categoriaId: 'cat_burgers', disponivel: true },
-          { id: uid('p'), nome: 'Batata Frita Rústica', descricao: 'Porção generosa com casca, alecrim e flor de sal.', preco: 16.9, foto: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600&q=80', categoriaId: 'cat_acompanhamentos', disponivel: true },
-          { id: uid('p'), nome: 'Onion Rings', descricao: 'Anéis de cebola empanados e fritos até dourar.', preco: 18.9, foto: 'https://images.unsplash.com/photo-1639024471283-03518883512d?w=600&q=80', categoriaId: 'cat_acompanhamentos', disponivel: true },
-          { id: uid('p'), nome: 'Coca-Cola Lata 350ml', descricao: 'Gelada.', preco: 7.0, foto: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=600&q=80', categoriaId: 'cat_bebidas', disponivel: true },
-          { id: uid('p'), nome: 'Suco Natural de Laranja 500ml', descricao: 'Feito na hora.', preco: 11.0, foto: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=600&q=80', categoriaId: 'cat_bebidas', disponivel: true },
-          { id: uid('p'), nome: 'Brownie com Sorvete', descricao: 'Brownie quente, bola de sorvete de creme e calda de chocolate.', preco: 19.9, foto: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&q=80', categoriaId: 'cat_sobremesas', disponivel: true },
-        ],
-      });
-    }
-
-    if (!getLoja('pizza-bella')) {
-      saveLoja({
-        id: 'pizza-bella',
-        nome: 'Pizza Bella',
-        slogan: 'Pizzas napolitanas no forno a lenha',
-        logoUrl: '',
-        corPrimaria: '#C8102E',
-        corSecundaria: '#1B1B1B',
-        usuario: 'pizza',
-        senha: '1234',
-        tempoMedioMin: 40,
-        tempoMedioMax: 60,
-        taxaEntrega: 8.0,
-        pedidoMinimo: 35,
-        horarios: horarioPadrao(),
-        forcarFechado: false,
-        categorias: [
-          { id: 'cat_destaques', nome: 'Destaques', ordem: 0 },
-          { id: 'cat_salgadas', nome: 'Pizzas Salgadas', ordem: 1 },
-          { id: 'cat_doces', nome: 'Pizzas Doces', ordem: 2 },
-          { id: 'cat_bebidas', nome: 'Bebidas', ordem: 3 },
-        ],
-        produtos: [
-          { id: uid('p'), nome: 'Margherita', descricao: 'Molho de tomate, mussarela de búfala, manjericão fresco e azeite extra virgem.', preco: 49.9, foto: 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=600&q=80', categoriaId: 'cat_destaques', disponivel: true, destaque: true },
-          { id: uid('p'), nome: 'Pepperoni', descricao: 'Molho de tomate, mussarela e generosas fatias de pepperoni.', preco: 54.9, foto: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=600&q=80', categoriaId: 'cat_destaques', disponivel: true, destaque: true },
-          { id: uid('p'), nome: 'Margherita', descricao: 'Molho de tomate, mussarela de búfala, manjericão fresco e azeite extra virgem.', preco: 49.9, foto: 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=600&q=80', categoriaId: 'cat_salgadas', disponivel: true },
-          { id: uid('p'), nome: 'Quattro Formaggi', descricao: 'Mussarela, gorgonzola, parmesão e provolone.', preco: 57.9, foto: 'https://images.unsplash.com/photo-1593560708920-61b98ae7f8ab?w=600&q=80', categoriaId: 'cat_salgadas', disponivel: true },
-          { id: uid('p'), nome: 'Calabresa Acebolada', descricao: 'Calabresa artesanal, cebola roxa e azeitonas.', preco: 52.9, foto: 'https://images.unsplash.com/photo-1593246049226-decd4540f15e?w=600&q=80', categoriaId: 'cat_salgadas', disponivel: true },
-          { id: uid('p'), nome: 'Chocolate com Morango', descricao: 'Chocolate ao leite derretido com morangos frescos.', preco: 46.9, foto: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&q=80', categoriaId: 'cat_doces', disponivel: true },
-          { id: uid('p'), nome: 'Água Mineral 500ml', descricao: 'Com ou sem gás.', preco: 5.0, foto: 'https://images.unsplash.com/photo-1560023907-5f339617ea30?w=600&q=80', categoriaId: 'cat_bebidas', disponivel: true },
-          { id: uid('p'), nome: 'Refrigerante 2L', descricao: 'Coca-Cola, Guaraná ou Fanta.', preco: 14.0, foto: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&q=80', categoriaId: 'cat_bebidas', disponivel: true },
-        ],
-      });
-    }
-  }
-
   return {
     uid,
-    getLoja, saveLoja, listLojaIds,
-    autenticar,
+    listLojaIds, getLoja, saveLoja, autenticar,
     isLojaAberta, proximoHorario, NOMES_DIAS,
-    getPedidos, savePedido, updatePedidoStatus,
-    getClienteInfo, saveClienteInfo,
+    getPedidos, savePedido, updatePedidoStatus, subscribePedidos,
     getEnderecos, saveEndereco, deleteEndereco,
+    getClienteInfo, saveClienteInfo,
     getCarrinho, saveCarrinho, clearCarrinho,
     getSession, setSession, clearSession,
-    seedIfEmpty,
   };
 })();
