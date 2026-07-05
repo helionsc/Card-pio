@@ -1,0 +1,12 @@
+<svg viewBox="0 0 70 62" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="northnGrad" x1="4%" y1="2%" x2="96%" y2="98%">
+      <stop offset="0%" stop-color="#a396ff"/>
+      <stop offset="55%" stop-color="#7c6ae8"/>
+      <stop offset="100%" stop-color="#4b3bc4"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#northnGrad)" d="M38.6,4.1 L31.5,4.0 L4.0,52.5 L6.3,57.8 L14.8,56.6 L39.9,11.4 Z"/>
+  <path fill="url(#northnGrad)" d="M41.3,16.1 L38.0,21.5 L37.9,26.1 L55.0,57.6 L62.6,57.8 L65.0,52.8 L44.6,16.0 Z"/>
+  <path fill="url(#northnGrad)" d="M21.9,56.1 L23.8,58.0 L45.1,58.0 L47.7,54.4 L44.4,48.0 L26.8,46.9 L24.1,49.3 Z"/>
+</svg>
